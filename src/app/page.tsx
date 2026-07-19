@@ -18,7 +18,8 @@ export default function StorefrontPage() {
     });
     
     const unsubAnns = subscribeToActiveAnnouncements((anns) => {
-      setAnnouncements(anns);
+      // Show announcements meant for all or user, hide developer only
+      setAnnouncements(anns.filter(a => a.targetAudience !== 'developer'));
     });
 
     return () => {
@@ -62,8 +63,8 @@ export default function StorefrontPage() {
             <span className="grad-text">Verified & Secure.</span>
           </h1>
           
-          <div className="glass-panel" style={{ display: 'flex', alignItems: 'center', maxWidth: '600px', margin: '0 auto 32px', padding: '8px 12px', borderRadius: '100px', background: 'rgba(255,255,255,0.05)' }}>
-            <div style={{ padding: '0 16px', color: 'rgba(255,255,255,0.5)', fontSize: '20px' }}>🔍</div>
+          <div className="glass-panel" style={{ display: 'flex', alignItems: 'center', maxWidth: '600px', margin: '0 auto 32px', padding: '8px 12px', borderRadius: '100px', background: 'var(--surface)' }}>
+            <div style={{ padding: '0 16px', color: 'var(--text-muted)', fontSize: '20px' }}>🔍</div>
             <input aria-label="Search Apps" 
               type="text" 
               placeholder="What are you looking for?" 
@@ -71,7 +72,7 @@ export default function StorefrontPage() {
               onChange={(e) => setSearch(e.target.value)}
               style={{ 
                 flex: 1, background: 'transparent', border: 'none', 
-                color: '#fff', fontSize: '18px', outline: 'none', padding: '12px 0'
+                color: 'var(--text-main)', fontSize: '18px', outline: 'none', padding: '12px 0'
               }}
             />
           </div>
@@ -90,7 +91,7 @@ export default function StorefrontPage() {
       {announcements.length > 0 && !search && (
         <div style={{ maxWidth: '1000px', margin: '-40px auto 40px', position: 'relative', zIndex: 10 }}>
           {announcements.length > 1 && (
-            <div style={{ textAlign: 'right', paddingRight: '32px', marginBottom: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.5)', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '6px' }}>
+            <div style={{ textAlign: 'right', paddingRight: '32px', marginBottom: '8px', fontSize: '12px', color: 'var(--text-muted)', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '6px' }}>
               <span>Scroll for more announcements</span>
               <span style={{ fontSize: '16px', animation: 'bounceX 2s infinite' }}>➔</span>
             </div>
@@ -142,10 +143,10 @@ export default function StorefrontPage() {
                         <div style={{ fontWeight: 800, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '1px', color: titleColor }}>
                           {ann.type === 'info' ? 'System Update' : ann.type === 'success' ? 'Good News' : 'Important Notice'}
                         </div>
-                        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                           {ann.createdAt ? new Date(ann.createdAt.toMillis ? ann.createdAt.toMillis() : ann.createdAt).toLocaleDateString() : 'Just now'}
                           {ann.updatedAt && (
-                            <span style={{ fontStyle: 'italic', marginLeft: '6px', color: 'rgba(255,255,255,0.6)' }}>
+                            <span style={{ fontStyle: 'italic', marginLeft: '6px', color: 'var(--text-muted)' }}>
                               (Edited: {new Date(ann.updatedAt.toMillis ? ann.updatedAt.toMillis() : ann.updatedAt).toLocaleString()})
                             </span>
                           )}
@@ -153,26 +154,26 @@ export default function StorefrontPage() {
                       </div>
                     </div>
                     <p className="announcement-txt" style={{ 
-                      fontSize: '15px', lineHeight: 1.5, color: 'rgba(255,255,255,0.9)', 
+                      fontSize: '15px', lineHeight: 1.5, color: 'var(--text-main)', 
                       margin: 0, whiteSpace: 'pre-wrap', fontWeight: 400,
                       overflow: 'hidden', textOverflow: 'ellipsis',
                       display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical'
                     }}>
                       {ann.message.split(/(\*\*[\s\S]*?\*\*|\*[\s\S]*?\*)/g).map((part, i) => {
                         if (part.startsWith('**') && part.endsWith('**')) {
-                          return <strong key={i} style={{ color: '#fff' }}>{part.slice(2, -2)}</strong>;
+                          return <strong key={i} style={{ color: 'var(--text-main)' }}>{part.slice(2, -2)}</strong>;
                         }
                         if (part.startsWith('*') && part.endsWith('*')) {
-                          return <em key={i} style={{ color: '#fff' }}>{part.slice(1, -1)}</em>;
+                          return <em key={i} style={{ color: 'var(--text-main)' }}>{part.slice(1, -1)}</em>;
                         }
                         return <span key={i}>{part}</span>;
                       })}
                     </p>
                     <button 
                       onClick={() => setExpandedAnn(ann)}
-                      style={{ marginTop: 'auto', background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', padding: '8px 16px', borderRadius: '100px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '6px', transition: 'background 0.2s' }}
-                      onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
-                      onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                      style={{ marginTop: 'auto', background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text-main)', padding: '8px 16px', borderRadius: '100px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '6px', transition: 'background 0.2s' }}
+                      onMouseOver={(e) => e.currentTarget.style.background = 'var(--surface)'}
+                      onMouseOut={(e) => e.currentTarget.style.background = 'var(--surface2)'}
                     >
                       Read More <span style={{ fontSize: '14px' }}>➔</span>
                     </button>
@@ -233,19 +234,19 @@ export default function StorefrontPage() {
       <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '40px 24px 80px' }}>
         
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '60px 0', color: 'rgba(255,255,255,0.5)' }}>
+          <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
             <div style={{ fontSize: '32px', marginBottom: '16px', animation: 'pulse 1.5s infinite' }}>⏳</div>
             Loading Storefront...
           </div>
         ) : search ? (
           /* SEARCH RESULTS VIEW */
           <div>
-            <h2 style={{ fontSize: '24px', fontWeight: 700, marginBottom: '24px', color: '#fff' }}>Search Results</h2>
+            <h2 style={{ fontSize: '24px', fontWeight: 700, marginBottom: '24px', color: 'var(--text-main)' }}>Search Results</h2>
             {filteredApps.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px 0', background: 'var(--surface)', borderRadius: '24px', border: '1px solid var(--border)' }}>
                 <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏜️</div>
                 <h3 style={{ fontSize: '24px', marginBottom: '8px' }}>No Apps Found</h3>
-                <p style={{ color: 'rgba(255,255,255,0.5)' }}>We couldn't find any apps matching your search.</p>
+                <p style={{ color: 'var(--text-muted)' }}>We couldn't find any apps matching your search.</p>
               </div>
             ) : (
               <div className="admin-grid-responsive" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '24px' }}>
@@ -324,7 +325,7 @@ function HorizontalRow({ title, apps, isRanking = false }: { title: string, apps
   return (
     <section>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h3 style={{ fontSize: '22px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <h3 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
           {title} <span style={{ color: 'var(--c1)', fontSize: '18px' }}>➔</span>
         </h3>
       </div>
@@ -342,20 +343,22 @@ function AppCard({ app, rank }: { app: AppListing, rank?: number }) {
     <a href={`/app?id=${app.id}`} style={{ display: 'block', textDecoration: 'none', minWidth: '140px', maxWidth: '140px', flex: '0 0 auto', position: 'relative', scrollSnapAlign: 'start', transition: 'transform 0.3s' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
       <div style={{ position: 'relative', width: '140px', height: '140px', marginBottom: '12px' }}>
         {rank !== undefined && (
-          <div style={{ position: 'absolute', left: '-20px', bottom: '-20px', fontSize: '120px', fontWeight: 900, color: 'rgba(255,255,255,0.05)', zIndex: 0, lineHeight: 0.8, userSelect: 'none', textShadow: '0 4px 24px rgba(0,0,0,0.5)' }}>
+          <div style={{ position: 'absolute', left: '-20px', bottom: '-20px', fontSize: '120px', fontWeight: 900, color: 'var(--border)', zIndex: 0, lineHeight: 0.8, userSelect: 'none', textShadow: '0 4px 24px rgba(0,0,0,0.1)' }}>
             {rank}
           </div>
         )}
         <img 
           src={app.iconUrl} 
           alt={app.appName} 
-          style={{ width: '100%', height: '100%', borderRadius: '32px', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)', position: 'relative', zIndex: 1, boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}
+          className="app-glass-icon"
+          style={{ width: '100%', height: '100%', borderRadius: '32px', objectFit: 'cover', position: 'relative', zIndex: 1 }}
         />
+        <div className="glass-reflection" />
       </div>
-      <div style={{ fontWeight: 600, color: '#fff', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: '4px', letterSpacing: '0.3px' }}>
+      <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: '4px', letterSpacing: '0.3px' }}>
         {app.appName}
       </div>
-      <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <div style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {app.category} • ⭐ {app.rating ? app.rating.toFixed(1) : 'New'}
       </div>
     </a>

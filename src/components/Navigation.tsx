@@ -21,8 +21,7 @@ export default function Navigation() {
         alignItems: 'center', 
         justifyContent: 'space-between', 
         padding: '16px 24px',
-        background: 'rgba(0,0,0,0.85)',
-        backdropFilter: 'blur(20px)',
+        background: 'var(--surface)',
         borderBottom: '1px solid var(--border)',
         position: 'sticky',
         top: 0,
@@ -30,23 +29,23 @@ export default function Navigation() {
       }}>
         {/* Desktop & Mobile Logo */}
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}>
-          <img src="/logos/logo-orange.png" alt="Aero Store" style={{ width: '32px', height: '32px', borderRadius: '8px', objectFit: 'cover' }} id="nav-logo" />
-          <span style={{ fontSize: '20px', fontWeight: 800, color: '#fff', letterSpacing: '0.5px' }}>Aero Store</span>
+          <img src="/logos/logo-blue-v2.png" alt="Aero Store" style={{ width: '32px', height: '32px', borderRadius: '8px', objectFit: 'cover' }} id="nav-logo" />
+          <span style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '0.5px' }}>Aero Store</span>
         </Link>
 
         {/* Desktop Links */}
         <div className="nav-desktop-links" style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-          <Link href="/developers/" style={{ color: '#fff', textDecoration: 'none', fontWeight: pathname?.includes('/developers') ? 700 : 500, opacity: pathname?.includes('/developers') ? 1 : 0.7 }}>For Developers</Link>
+          <Link href="/developers/" style={{ color: 'var(--text-main)', textDecoration: 'none', fontWeight: pathname?.includes('/developers') ? 700 : 500, opacity: pathname?.includes('/developers') ? 1 : 0.7 }}>For Developers</Link>
           
           {user ? (
             <>
               {userData?.role === 'admin' && (
-                <Link href="/admin/" style={{ padding: '8px 16px', borderRadius: '8px', background: 'rgba(255,77,77,0.2)', border: '1px solid rgba(255,77,77,0.5)', color: '#ff4d4d', textDecoration: 'none', fontWeight: 600 }}>
+                <Link href="/admin/" style={{ padding: '8px 16px', borderRadius: '8px', background: 'rgba(255,77,77,0.1)', border: '1px solid rgba(255,77,77,0.3)', color: '#ff4d4d', textDecoration: 'none', fontWeight: 600 }}>
                   Admin Panel
                 </Link>
               )}
               {(userData?.role === 'developer' || userData?.role === 'admin') && (
-                <Link href="/dashboard/" style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid var(--border)', color: '#fff', textDecoration: 'none', fontWeight: 600 }}>
+                <Link href="/dashboard/" style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid var(--border)', color: 'var(--text-main)', textDecoration: 'none', fontWeight: 600 }}>
                   Dashboard
                 </Link>
               )}
@@ -71,7 +70,7 @@ export default function Navigation() {
         <button 
           className="nav-mobile-toggle"
           onClick={() => setMobileMenuOpen(true)}
-          style={{ display: 'none', background: 'none', border: 'none', color: '#fff', fontSize: '26px', cursor: 'pointer', padding: '4px' }}
+          style={{ display: 'none', background: 'none', border: 'none', color: 'var(--text-main)', fontSize: '26px', cursor: 'pointer', padding: '4px' }}
         >
           ☰
         </button>
@@ -85,11 +84,11 @@ export default function Navigation() {
             {/* Mobile Menu Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <img src="/logos/logo-orange.png" alt="Aero Store" style={{ width: '36px', height: '36px', borderRadius: '10px' }} id="mobile-nav-logo" />
-                <span style={{ fontSize: '20px', fontWeight: 700, color: '#fff' }}>Aero Store</span>
+                <img src="/logos/logo-blue-v2.png" alt="Aero Store" style={{ width: '36px', height: '36px', borderRadius: '10px' }} id="mobile-nav-logo" />
+                <span style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-main)' }}>Aero Store</span>
               </div>
               <button onClick={() => setMobileMenuOpen(false)} style={{
-                background: 'rgba(255,255,255,0.08)', border: 'none', color: '#fff', fontSize: '18px',
+                background: 'var(--surface2)', border: 'none', color: 'var(--text-main)', fontSize: '18px',
                 cursor: 'pointer', width: '40px', height: '40px', borderRadius: '50%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center'
               }}>✕</button>
@@ -99,10 +98,10 @@ export default function Navigation() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <Link href="/developers/" onClick={() => setMobileMenuOpen(false)} style={{
                 display: 'flex', alignItems: 'center', gap: '16px', padding: '16px 20px', 
-                borderRadius: '14px', textDecoration: 'none', color: '#fff',
-                background: pathname?.includes('/developers') ? 'linear-gradient(135deg, var(--c1), var(--c2))' : 'rgba(255,255,255,0.04)',
+                borderRadius: '14px', textDecoration: 'none', color: pathname?.includes('/developers') ? '#fff' : 'var(--text-main)',
+                background: pathname?.includes('/developers') ? 'linear-gradient(135deg, var(--c1), var(--c2))' : 'var(--surface2)',
                 fontWeight: pathname?.includes('/developers') ? 700 : 500, fontSize: '17px',
-                border: pathname?.includes('/developers') ? 'none' : '1px solid rgba(255,255,255,0.06)'
+                border: pathname?.includes('/developers') ? 'none' : '1px solid var(--border)'
               }}>
                 <span style={{ fontSize: '22px' }}>💻</span> For Developers
               </Link>
@@ -111,10 +110,10 @@ export default function Navigation() {
                 <>
                   <Link href="/profile/" onClick={() => setMobileMenuOpen(false)} style={{
                     display: 'flex', alignItems: 'center', gap: '16px', padding: '16px 20px', 
-                    borderRadius: '14px', textDecoration: 'none', color: '#fff',
-                    background: pathname?.includes('/profile') ? 'linear-gradient(135deg, var(--c1), var(--c2))' : 'rgba(255,255,255,0.04)',
+                    borderRadius: '14px', textDecoration: 'none', color: pathname?.includes('/profile') ? '#fff' : 'var(--text-main)',
+                    background: pathname?.includes('/profile') ? 'linear-gradient(135deg, var(--c1), var(--c2))' : 'var(--surface2)',
                     fontWeight: pathname?.includes('/profile') ? 700 : 500, fontSize: '17px',
-                    border: pathname?.includes('/profile') ? 'none' : '1px solid rgba(255,255,255,0.06)'
+                    border: pathname?.includes('/profile') ? 'none' : '1px solid var(--border)'
                   }}>
                     {profilePhoto ? (
                       <img src={profilePhoto} alt="Profile" style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }} />
@@ -127,9 +126,9 @@ export default function Navigation() {
                   {(userData?.role === 'developer' || userData?.role === 'admin') && (
                     <Link href="/dashboard/" onClick={() => setMobileMenuOpen(false)} style={{
                       display: 'flex', alignItems: 'center', gap: '16px', padding: '16px 20px', 
-                      borderRadius: '14px', textDecoration: 'none', color: '#fff',
-                      background: 'rgba(255,255,255,0.04)', fontWeight: 500, fontSize: '17px',
-                      border: '1px solid rgba(255,255,255,0.06)'
+                      borderRadius: '14px', textDecoration: 'none', color: 'var(--text-main)',
+                      background: 'var(--surface2)', fontWeight: 500, fontSize: '17px',
+                      border: '1px solid var(--border)'
                     }}>
                       <span style={{ fontSize: '22px' }}>🚀</span> Developer Dashboard
                     </Link>

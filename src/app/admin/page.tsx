@@ -32,6 +32,7 @@ export default function AdminPage() {
   
   const [announcementMsg, setAnnouncementMsg] = useState("");
   const [announcementType, setAnnouncementType] = useState<'info'|'warning'|'success'>('info');
+  const [targetAudience, setTargetAudience] = useState<'user' | 'developer' | 'all'>('all');
   const [announcementFile, setAnnouncementFile] = useState<File | null>(null);
   const [scheduledForStr, setScheduledForStr] = useState("");
   const [expiresAtStr, setExpiresAtStr] = useState("");
@@ -303,6 +304,7 @@ export default function AdminPage() {
         const updates: any = {
           message: announcementMsg,
           type: announcementType,
+          targetAudience,
           scheduledFor,
           expiresAt
         };
@@ -313,7 +315,7 @@ export default function AdminPage() {
         await editAnnouncement(editingId, updates);
         alert("Announcement updated successfully!");
       } else {
-        await publishAnnouncement(announcementMsg, announcementType, mediaUrl, mediaType as any, scheduledFor, expiresAt);
+        await publishAnnouncement(announcementMsg, announcementType, targetAudience, mediaUrl, mediaType as any, scheduledFor, expiresAt);
         alert("Announcement published successfully!");
       }
 
@@ -337,6 +339,7 @@ export default function AdminPage() {
     setEditingId(ann.id!);
     setAnnouncementMsg(ann.message);
     setAnnouncementType(ann.type);
+    setTargetAudience(ann.targetAudience || 'all');
     setScheduledForStr(ann.scheduledFor ? new Date(ann.scheduledFor - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0,16) : "");
     setExpiresAtStr(ann.expiresAt ? new Date(ann.expiresAt - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0,16) : "");
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -777,6 +780,14 @@ export default function AdminPage() {
                   </label>
                 ))}
               </div>
+              <div className="flex-wrap-mobile" style={{ display: 'flex', gap: '16px', borderLeft: '1px solid var(--border)', paddingLeft: '16px' }}>
+                {['all', 'user', 'developer'].map(aud => (
+                  <label key={aud} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input aria-label="Target Audience" type="radio" name="targetAudience" checked={targetAudience === aud} onChange={() => setTargetAudience(aud as any)} />
+                    <span style={{ textTransform: 'capitalize' }}>{aud === 'all' ? 'Everyone' : aud === 'user' ? 'Normal Users' : 'Developers'}</span>
+                  </label>
+                ))}
+              </div>
               <button 
                 onClick={handleAIGenerate}
                 disabled={isGeneratingAI}
@@ -884,7 +895,9 @@ export default function AdminPage() {
                         <p style={{ margin: '0 0 8px 0', fontSize: '14px', lineHeight: 1.5 }}>{ann.message}</p>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>{ann.type}</span>
+                            <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>
+                              {ann.type} • Target: {ann.targetAudience === 'user' ? 'Users' : ann.targetAudience === 'developer' ? 'Developers' : 'Everyone'}
+                            </span>
                             {(ann.scheduledFor || ann.expiresAt) && (
                               <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>
                                 {ann.scheduledFor ? `Starts: ${new Date(ann.scheduledFor).toLocaleString()} ` : ''}

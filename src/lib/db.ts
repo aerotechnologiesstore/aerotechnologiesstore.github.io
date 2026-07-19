@@ -192,6 +192,7 @@ export interface Announcement {
   id?: string;
   message: string;
   type: 'info' | 'warning' | 'success';
+  targetAudience?: 'user' | 'developer' | 'all';
   active: boolean;
   mediaUrl?: string | null;
   mediaType?: 'image' | 'video' | null;
@@ -209,6 +210,7 @@ export interface Announcement {
 export async function publishAnnouncement(
   message: string, 
   type: 'info' | 'warning' | 'success', 
+  targetAudience: 'user' | 'developer' | 'all' = 'all',
   mediaUrl: string | null = null, 
   mediaType: 'image' | 'video' | null = null,
   scheduledFor: number | null = null,
@@ -224,6 +226,7 @@ export async function publishAnnouncement(
   await addDoc(annRef, {
     message,
     type,
+    targetAudience,
     active: true,
     mediaUrl,
     mediaType,
@@ -271,6 +274,7 @@ export async function editAnnouncement(
   updates: Partial<{
     message: string;
     type: 'info' | 'warning' | 'success';
+    targetAudience: 'user' | 'developer' | 'all';
     mediaUrl: string | null;
     mediaType: 'image' | 'video' | null;
     scheduledFor: number | null;
