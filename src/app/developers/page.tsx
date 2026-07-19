@@ -2,46 +2,27 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Navigation from '@/components/Navigation';
+import { subscribeToActiveAnnouncements, Announcement } from '@/lib/db';
 
-/* ─── THEME DEFINITIONS ─── */
-const THEMES = [
-  { name: 'Inferno', bg: '#080400', bg2: '#100800', surface: '#1a0c00', surface2: '#221000', c1: '#FF2D00', c2: '#FF6B00', c3: '#FFB300', border: 'rgba(255,107,0,0.15)', glow: 'rgba(255,107,0,0.2)', logo: '/logos/logo-orange-v2.png' },
-  { name: 'Cyber', bg: '#000810', bg2: '#001020', surface: '#001428', surface2: '#001a33', c1: '#00A3FF', c2: '#00D4FF', c3: '#7DF9FF', border: 'rgba(0,163,255,0.15)', glow: 'rgba(0,163,255,0.2)', logo: '/logos/logo-blue-v2.png' },
-  { name: 'Nebula', bg: '#0a0018', bg2: '#120020', surface: '#1a0830', surface2: '#220e3a', c1: '#8B5CF6', c2: '#A78BFA', c3: '#DDD6FE', border: 'rgba(139,92,246,0.15)', glow: 'rgba(139,92,246,0.2)', logo: '/logos/logo-purple-v2.png' },
-  { name: 'Launch', bg: '#100400', bg2: '#180800', surface: '#201000', surface2: '#2a1400', c1: '#FF4500', c2: '#FF8C00', c3: '#FFD700', border: 'rgba(255,140,0,0.15)', glow: 'rgba(255,140,0,0.2)', logo: '/logos/logo-rocket-v2.png' },
-];
 
-function applyTheme(theme: typeof THEMES[0]) {
-  const root = document.documentElement;
-  root.style.setProperty('--bg', theme.bg);
-  root.style.setProperty('--bg2', theme.bg2);
-  root.style.setProperty('--surface', theme.surface);
-  root.style.setProperty('--surface2', theme.surface2);
-  root.style.setProperty('--c1', theme.c1);
-  root.style.setProperty('--c2', theme.c2);
-  root.style.setProperty('--c3', theme.c3);
-  root.style.setProperty('--border', theme.border);
-  root.style.setProperty('--glow', theme.glow);
-}
+
 
 export default function DevelopersPage() {
   const { user, userData } = useAuth();
-  const [logoSrc, setLogoSrc] = useState(THEMES[0].logo);
-
-  const cycleTheme = useCallback(() => {
-    setLogoSrc((prev) => {
-      const currentIdx = THEMES.findIndex(t => t.logo === prev);
-      const next = (currentIdx + 1) % THEMES.length;
-      applyTheme(THEMES[next]);
-      return THEMES[next].logo;
-    });
-  }, []);
+  const logoSrc = '/logos/logo-blue-v2.png';
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
   useEffect(() => {
-    applyTheme(THEMES[0]);
-    const interval = setInterval(cycleTheme, 8000);
-    return () => clearInterval(interval);
-  }, [cycleTheme]);
+    const unsub = subscribeToActiveAnnouncements((anns) => {
+      // Developers see announcements meant for everyone or specifically developers
+      setAnnouncements(anns.filter(a => a.targetAudience !== 'user'));
+    });
+    return () => unsub();
+  }, []);
+
+  
+
+  
 
   const preventContext = (e: React.MouseEvent) => e.preventDefault();
 
@@ -68,6 +49,36 @@ export default function DevelopersPage() {
         <p className="glass-hero-sub">
           Aero Store is India&apos;s independent app marketplace — where verified developers publish secure apps, and users discover software they can trust. Zero bloatware. Clean installs only.
         </p>
+
+        {announcements.length > 0 && (
+          <div style={{ maxWidth: '800px', width: '100%', margin: '0 auto 40px', position: 'relative', zIndex: 10, textAlign: 'left' }}>
+            <h3 style={{ fontSize: '14px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '16px', textAlign: 'center' }}>Platform Announcements</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {announcements.map(ann => (
+                <div key={ann.id} style={{ 
+                  padding: '24px', background: 'var(--surface2)', border: '1px solid var(--border)', 
+                  borderRadius: '16px', borderLeft: `4px solid ${ann.type === 'success' ? '#4ade80' : ann.type === 'warning' ? '#fbbf24' : '#60a5fa'}` 
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                    <div style={{ fontWeight: 700, fontSize: '14px', textTransform: 'uppercase', color: ann.type === 'success' ? '#4ade80' : ann.type === 'warning' ? '#fbbf24' : '#60a5fa' }}>
+                      {ann.type === 'info' ? 'System Update' : ann.type === 'success' ? 'Good News' : 'Important Notice'}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      {ann.createdAt ? new Date(ann.createdAt.toMillis ? ann.createdAt.toMillis() : ann.createdAt).toLocaleDateString() : ''}
+                    </div>
+                  </div>
+                  <p style={{ fontSize: '15px', color: 'var(--text-main)', margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+                    {ann.message.split(/(\*\*[\s\S]*?\*\*|\*[\s\S]*?\*)/g).map((part, i) => {
+                      if (part.startsWith('**') && part.endsWith('**')) return <strong key={i}>{part.slice(2, -2)}</strong>;
+                      if (part.startsWith('*') && part.endsWith('*')) return <em key={i}>{part.slice(1, -1)}</em>;
+                      return <span key={i}>{part}</span>;
+                    })}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         
         <div style={{display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center', position: 'relative', zIndex: 2}}>
           {user && (userData?.role === 'developer' || userData?.role === 'admin') ? (
@@ -86,23 +97,23 @@ export default function DevelopersPage() {
         
         <div style={{textAlign: 'center', marginBottom: '80px', position: 'relative', zIndex: 2}}>
           <h2 style={{fontSize: 'clamp(32px, 5vw, 48px)', fontWeight: 800, marginBottom: '16px'}}>Engineered for <span className="grad-text">Trust.</span></h2>
-          <p style={{fontSize: '18px', color: 'rgba(255,255,255,0.5)', maxWidth: '600px', margin: '0 auto'}}>We built Aero Store because developers deserve a fair, transparent, and secure marketplace without gatekeeping.</p>
+          <p style={{fontSize: '18px', color: 'var(--text-muted)', maxWidth: '600px', margin: '0 auto'}}>We built Aero Store because developers deserve a fair, transparent, and secure marketplace without gatekeeping.</p>
         </div>
 
         <div className="bento-grid">
           {/* Bento Item 1 - Large */}
           <div className="glass-panel" style={{gridColumn: '1 / -1', padding: '60px', display: 'flex', flexWrap: 'wrap', gap: '40px', alignItems: 'center', justifyContent: 'space-between'}}>
             <div style={{flex: '1 1 400px'}}>
-              <div style={{width: '60px', height: '60px', borderRadius: '16px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '30px', marginBottom: '24px', border: '1px solid rgba(255,255,255,0.1)'}}>🛡️</div>
+              <div style={{width: '60px', height: '60px', borderRadius: '16px', background: 'var(--surface2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '30px', marginBottom: '24px', border: '1px solid var(--border)'}}>🛡️</div>
               <h3 style={{fontSize: '32px', fontWeight: 800, marginBottom: '16px'}}>Verified Developers Only</h3>
-              <p style={{fontSize: '16px', color: 'rgba(255,255,255,0.5)', lineHeight: 1.6}}>Every developer on our platform goes through mandatory identity and address verification. No anonymous uploads, no shady accounts. Every app is traceable to a real person or company.</p>
+              <p style={{fontSize: '16px', color: 'var(--text-muted)', lineHeight: 1.6}}>Every developer on our platform goes through mandatory identity and address verification. No anonymous uploads, no shady accounts. Every app is traceable to a real person or company.</p>
             </div>
             <div style={{flex: '1 1 300px', display: 'flex', justifyContent: 'center'}}>
                <div style={{background: 'rgba(0,0,0,0.5)', padding: '24px', borderRadius: '24px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '16px'}}>
                  <div style={{width: '48px', height: '48px', borderRadius: '50%', background: '#4ade80', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontSize: '24px'}}>✓</div>
                  <div>
                    <div style={{fontWeight: 700, fontSize: '18px'}}>Identity Verified</div>
-                   <div style={{fontSize: '13px', color: 'rgba(255,255,255,0.5)'}}>Aero Store Trust & Safety</div>
+                   <div style={{fontSize: '13px', color: 'var(--text-muted)'}}>Aero Store Trust & Safety</div>
                  </div>
                </div>
             </div>
@@ -110,30 +121,30 @@ export default function DevelopersPage() {
 
           {/* Bento Item 2 */}
           <div className="glass-panel" style={{padding: '40px'}}>
-            <div style={{width: '50px', height: '50px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', marginBottom: '20px', border: '1px solid rgba(255,255,255,0.1)'}}>🔍</div>
+            <div style={{width: '50px', height: '50px', borderRadius: '12px', background: 'var(--surface2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', marginBottom: '20px', border: '1px solid var(--border)'}}>🔍</div>
             <h3 style={{fontSize: '24px', fontWeight: 700, marginBottom: '12px'}}>Automated Scanning</h3>
-            <p style={{fontSize: '15px', color: 'rgba(255,255,255,0.5)', lineHeight: 1.6}}>Every uploaded APK passes through multi-layer security scans. Malicious or suspicious code is flagged and blocked instantly.</p>
+            <p style={{fontSize: '15px', color: 'var(--text-muted)', lineHeight: 1.6}}>Every uploaded APK passes through multi-layer security scans. Malicious or suspicious code is flagged and blocked instantly.</p>
           </div>
 
           {/* Bento Item 3 */}
           <div className="glass-panel" style={{padding: '40px'}}>
-            <div style={{width: '50px', height: '50px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', marginBottom: '20px', border: '1px solid rgba(255,255,255,0.1)'}}>⚖️</div>
+            <div style={{width: '50px', height: '50px', borderRadius: '12px', background: 'var(--surface2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', marginBottom: '20px', border: '1px solid var(--border)'}}>⚖️</div>
             <h3 style={{fontSize: '24px', fontWeight: 700, marginBottom: '12px'}}>Fair Disputes</h3>
-            <p style={{fontSize: '15px', color: 'rgba(255,255,255,0.5)', lineHeight: 1.6}}>Every complaint is tracked transparently with timestamped audit trails — no black-box decisions or automated takedowns without review.</p>
+            <p style={{fontSize: '15px', color: 'var(--text-muted)', lineHeight: 1.6}}>Every complaint is tracked transparently with timestamped audit trails — no black-box decisions or automated takedowns without review.</p>
           </div>
 
           {/* Bento Item 4 */}
           <div className="glass-panel" style={{padding: '40px'}}>
-            <div style={{width: '50px', height: '50px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', marginBottom: '20px', border: '1px solid rgba(255,255,255,0.1)'}}>🤖</div>
+            <div style={{width: '50px', height: '50px', borderRadius: '12px', background: 'var(--surface2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', marginBottom: '20px', border: '1px solid var(--border)'}}>🤖</div>
             <h3 style={{fontSize: '24px', fontWeight: 700, marginBottom: '12px'}}>AI-Powered Moderation</h3>
-            <p style={{fontSize: '15px', color: 'rgba(255,255,255,0.5)', lineHeight: 1.6}}>Powered by Google Gemini — our AI reviews app descriptions, scans metadata, and auto-flags policy violations before human review.</p>
+            <p style={{fontSize: '15px', color: 'var(--text-muted)', lineHeight: 1.6}}>Powered by Google Gemini — our AI reviews app descriptions, scans metadata, and auto-flags policy violations before human review.</p>
           </div>
           
           {/* Bento Item 5 */}
           <div className="glass-panel" style={{gridColumn: '1 / -1', padding: '60px', display: 'flex', flexWrap: 'wrap', gap: '40px', alignItems: 'center', justifyContent: 'space-between'}}>
             <div style={{flex: '1 1 400px'}}>
               <h3 style={{fontSize: '32px', fontWeight: 800, marginBottom: '16px'}}>Ship Your App to <span className="grad-text">Thousands.</span></h3>
-              <p style={{fontSize: '16px', color: 'rgba(255,255,255,0.5)', lineHeight: 1.6, marginBottom: '32px'}}>Aero Store is open for developer registrations. Track downloads, ratings, user feedback, and geographic distribution from one clean dashboard. Free to publish, forever.</p>
+              <p style={{fontSize: '16px', color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: '32px'}}>Aero Store is open for developer registrations. Track downloads, ratings, user feedback, and geographic distribution from one clean dashboard. Free to publish, forever.</p>
               <div style={{display: 'flex', gap: '16px'}}>
                 {user && (userData?.role === 'developer' || userData?.role === 'admin') ? (
                   <a href="/dashboard/" className="btn-glass btn-glass-primary">Go to Dashboard ➔</a>

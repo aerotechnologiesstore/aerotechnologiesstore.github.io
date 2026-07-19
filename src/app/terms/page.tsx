@@ -3,27 +3,13 @@ import Link from 'next/link';
 import React, { useEffect, useState, useCallback } from 'react';
 import '../legal.css';
 
-const THEMES = [
-  { name:'Inferno', bg:'#080400', bg2:'#100800', surface:'#1a0c00', surface2:'#221000', c1:'#FF2D00', c2:'#FF6B00', c3:'#FFB300', border:'rgba(255,107,0,0.15)', glow:'rgba(255,107,0,0.2)' },
-  { name:'Cyber', bg:'#000810', bg2:'#001020', surface:'#001428', surface2:'#001a33', c1:'#00A3FF', c2:'#00D4FF', c3:'#7DF9FF', border:'rgba(0,163,255,0.15)', glow:'rgba(0,163,255,0.2)' },
-  { name:'Nebula', bg:'#0a0018', bg2:'#120020', surface:'#1a0830', surface2:'#220e3a', c1:'#8B5CF6', c2:'#A78BFA', c3:'#DDD6FE', border:'rgba(139,92,246,0.15)', glow:'rgba(139,92,246,0.2)' },
-  { name:'Launch', bg:'#100400', bg2:'#180800', surface:'#201000', surface2:'#2a1400', c1:'#FF4500', c2:'#FF8C00', c3:'#FFD700', border:'rgba(255,140,0,0.15)', glow:'rgba(255,140,0,0.2)' },
-];
 
-function applyTheme(t: typeof THEMES[0]) {
-  const r = document.documentElement;
-  r.style.setProperty('--bg',t.bg); r.style.setProperty('--bg2',t.bg2);
-  r.style.setProperty('--surface',t.surface); r.style.setProperty('--surface2',t.surface2);
-  r.style.setProperty('--c1',t.c1); r.style.setProperty('--c2',t.c2); r.style.setProperty('--c3',t.c3);
-  r.style.setProperty('--border',t.border); r.style.setProperty('--glow',t.glow);
-}
+
 
 export default function TermsOfUse() {
-  const [idx, setIdx] = useState(0);
-  const cycle = useCallback(() => {
-    setIdx(p => { const n=(p+1)%THEMES.length; applyTheme(THEMES[n]); return n; });
-  }, []);
-  useEffect(() => { applyTheme(THEMES[0]); const i=setInterval(cycle,8000); return ()=>clearInterval(i); }, [cycle]);
+  
+  
+  
 
   return (
     <div className="legal-page" onContextMenu={e => e.preventDefault()}>

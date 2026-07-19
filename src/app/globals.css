@@ -1,8 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{
-  font-family:'Inter',sans-serif;
+  font-family:'Plus Jakarta Sans', 'Inter', sans-serif;
   background:var(--bg);
   color:var(--text-main);
   overflow-x:hidden;
@@ -12,6 +12,9 @@ body{
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
+}
+h1, h2, h3, h4, h5, h6, .nav-logo-name, .glass-hero-title, .section-title {
+  font-family: 'Outfit', sans-serif;
 }
 
 img {
