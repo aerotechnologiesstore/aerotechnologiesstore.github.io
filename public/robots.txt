@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://aerotechnologiesstore.github.io/sitemap.xml
