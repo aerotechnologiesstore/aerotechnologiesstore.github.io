@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     siteName: "Aero Store",
     images: [
       {
-        url: "https://aerotechnologiesstore.github.io/logos/logo-orange-v2.png",
+        url: "https://aerotechnologiesstore.github.io/logos/logo-main.png",
         width: 800,
         height: 800,
         alt: "Aero Store Logo",
@@ -23,9 +23,9 @@ export const metadata: Metadata = {
     type: "website",
   },
   icons: {
-    icon: "/logos/logo-orange-v2.png",
-    shortcut: "/logos/logo-orange-v2.png",
-    apple: "/logos/logo-orange-v2.png",
+    icon: "/logos/logo-main.png",
+    shortcut: "/logos/logo-main.png",
+    apple: "/logos/logo-main.png",
   }
 };
 

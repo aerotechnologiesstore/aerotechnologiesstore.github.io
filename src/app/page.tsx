@@ -60,10 +60,9 @@ export default function StorefrontPage() {
       <section style={{ padding: '100px 24px 160px', position: 'relative', background: 'var(--bg)' }}>
         <div style={{ position: 'relative', zIndex: 1, maxWidth: '900px', margin: '0 auto', textAlign: 'center', width: '100%' }}>
           <h1 style={{ fontSize: 'clamp(44px, 7vw, 76px)', marginBottom: '32px', fontWeight: 800, lineHeight: 1.1, color: 'var(--text-main)', letterSpacing: '-1px' }}>
-            All your apps on one platform.<br/>
+            The best apps.<br/>
             <span style={{ position: 'relative', display: 'inline-block' }}>
-              <span style={{ position: 'relative', zIndex: 1 }}>Simple, efficient, yet </span>
-              <span className="font-handwriting" style={{ position: 'relative', zIndex: 1, color: 'var(--text-main)', fontSize: '1.2em', paddingLeft: '8px' }}>
+              <span className="font-handwriting" style={{ position: 'relative', zIndex: 1, color: 'var(--text-main)', fontSize: '1.2em' }}>
                 Verified & Secure!
                 <svg style={{ position: 'absolute', bottom: '-4px', left: '0', width: '100%', height: '12px', zIndex: -1 }} viewBox="0 0 100 10" preserveAspectRatio="none">
                   <path d="M0,5 Q50,15 100,2" stroke="var(--c1)" strokeWidth="4" fill="none" strokeLinecap="round" />

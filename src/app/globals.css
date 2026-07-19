@@ -56,11 +56,11 @@ img {
   --surface2: #f1f5f9;
   --text-main: #0f172a;
   --text-muted: #64748b;
-  --c1: #3b82f6; /* Odoo blue */
-  --c2: #2563eb;
-  --c3: #1d4ed8;
+  --c1: #f97316; /* Orange 500 */
+  --c2: #ea580c; /* Orange 600 */
+  --c3: #c2410c; /* Orange 700 */
   --border: rgba(0,0,0,0.08);
-  --glow: rgba(59, 130, 246, 0.15);
+  --glow: rgba(249, 115, 22, 0.15);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -72,11 +72,11 @@ img {
     --surface2: #334155;
     --text-main: #ffffff;
     --text-muted: rgba(255,255,255,0.6);
-    --c1: #3b82f6; 
-    --c2: #60a5fa;
-    --c3: #93c5fd;
+    --c1: #fb923c; /* Orange 400 */
+    --c2: #f97316; /* Orange 500 */
+    --c3: #ea580c; /* Orange 600 */
     --border: rgba(255,255,255,0.1);
-    --glow: rgba(96, 165, 250, 0.2);
+    --glow: rgba(249, 115, 22, 0.2);
   }
 }
 
@@ -122,17 +122,17 @@ nav{
   user-select: none;
   -webkit-user-drag: none;
 }
-.nav-logo-name{font-size:15px;font-weight:700;color:#fff;letter-spacing:.3px;user-select: none;}
+.nav-logo-name{font-size:15px;font-weight:700;color:var(--text-main);letter-spacing:.3px;user-select: none;}
 .nav-links{display:flex;align-items:center;gap:32px}
-.nav-links a{font-size:13px;font-weight:500;color:rgba(255,255,255,.55);text-decoration:none;transition:color .2s}
-.nav-links a:hover{color:#fff}
+.nav-links a{font-size:13px;font-weight:500;color:var(--text-muted);text-decoration:none;transition:color .2s}
+.nav-links a:hover{color:var(--text-main)}
 .nav-actions{display:flex;align-items:center;gap:10px}
 .btn-ghost{
   padding:8px 18px;border-radius:8px;font-size:13px;font-weight:500;
-  color:#fff;background:rgba(255,255,255,.07);border:0.5px solid var(--border);
+  color:var(--text-main);background:rgba(255,255,255,.07);border:0.5px solid var(--border);
   cursor:pointer;text-decoration:none;transition:all .3s;
 }
-.btn-ghost:hover{background:rgba(255,255,255,.12)}
+.btn-ghost:hover{background:var(--surface2)}
 .btn-fire{
   padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;
   background:linear-gradient(135deg,var(--c1),var(--c2));
@@ -225,10 +225,10 @@ h1{
 .btn-primary:hover{transform:translateY(-2px)}
 .btn-secondary{
   padding:13px 30px;border-radius:10px;font-size:15px;font-weight:500;
-  background:rgba(255,255,255,.07);border:0.5px solid var(--border);
-  color:#fff;text-decoration:none;transition:all .2s;
+  background:var(--surface2);border:0.5px solid var(--border);
+  color:var(--text-main);text-decoration:none;transition:all .2s;
 }
-.btn-secondary:hover{background:rgba(255,255,255,.12)}
+.btn-secondary:hover{background:var(--surface)}
 
 .hero-stats{
   display:flex;align-items:center;gap:48px;margin-top:64px;
