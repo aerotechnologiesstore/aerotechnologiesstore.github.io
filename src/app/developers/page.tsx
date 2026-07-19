@@ -9,7 +9,7 @@ import { subscribeToActiveAnnouncements, Announcement } from '@/lib/db';
 
 export default function DevelopersPage() {
   const { user, userData } = useAuth();
-  const logoSrc = '/logos/logo-blue-v2.png';
+  const logoSrc = '/logos/logo-main.png';
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
   useEffect(() => {

@@ -28,7 +28,10 @@ export default function StorefrontPage() {
     };
   }, []);
 
-  const filteredApps = apps.filter(a => a.appName.toLowerCase().includes(search.toLowerCase()));
+  const filteredApps = apps.filter(a => 
+    a.appName.toLowerCase().includes(search.toLowerCase()) || 
+    (a.category && a.category.toLowerCase().includes(search.toLowerCase()))
+  );
 
   // Groups and metrics
   const topDownloads = [...apps].sort((a, b) => b.downloads - a.downloads);
@@ -50,20 +53,26 @@ export default function StorefrontPage() {
   }, [carouselApps.length]);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg2)' }}>
       <Navigation />
       
-      {/* GLASSMORPHIC HERO SEARCH */}
-      <section className="glass-hero" style={{ padding: '120px 24px 80px', minHeight: 'auto', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-        <div className="neon-glow" style={{width: '600px', height: '600px', background: 'var(--c1)', top: '50%', left: '50%', transform: 'translate(-50%, -50%)'}} />
-        
-        <div style={{ position: 'relative', zIndex: 1, maxWidth: '800px', margin: '0 auto', textAlign: 'center', width: '100%' }}>
-          <h1 className="glass-hero-title" style={{ fontSize: 'clamp(40px, 6vw, 64px)', marginBottom: '32px' }}>
-            The best apps.<br/>
-            <span className="grad-text">Verified & Secure.</span>
+      {/* ODOO STYLE HERO SEARCH */}
+      <section style={{ padding: '100px 24px 160px', position: 'relative', background: 'var(--bg)' }}>
+        <div style={{ position: 'relative', zIndex: 1, maxWidth: '900px', margin: '0 auto', textAlign: 'center', width: '100%' }}>
+          <h1 style={{ fontSize: 'clamp(44px, 7vw, 76px)', marginBottom: '32px', fontWeight: 800, lineHeight: 1.1, color: 'var(--text-main)', letterSpacing: '-1px' }}>
+            All your apps on one platform.<br/>
+            <span style={{ position: 'relative', display: 'inline-block' }}>
+              <span style={{ position: 'relative', zIndex: 1 }}>Simple, efficient, yet </span>
+              <span className="font-handwriting" style={{ position: 'relative', zIndex: 1, color: 'var(--text-main)', fontSize: '1.2em', paddingLeft: '8px' }}>
+                Verified & Secure!
+                <svg style={{ position: 'absolute', bottom: '-4px', left: '0', width: '100%', height: '12px', zIndex: -1 }} viewBox="0 0 100 10" preserveAspectRatio="none">
+                  <path d="M0,5 Q50,15 100,2" stroke="var(--c1)" strokeWidth="4" fill="none" strokeLinecap="round" />
+                </svg>
+              </span>
+            </span>
           </h1>
           
-          <div className="glass-panel" style={{ display: 'flex', alignItems: 'center', maxWidth: '600px', margin: '0 auto 32px', padding: '8px 12px', borderRadius: '100px', background: 'var(--surface)' }}>
+          <div className="glass-panel" style={{ display: 'flex', alignItems: 'center', maxWidth: '600px', margin: '40px auto 32px', padding: '8px 12px', borderRadius: '100px', background: 'var(--surface)', boxShadow: '0 8px 24px rgba(0,0,0,0.06)' }}>
             <div style={{ padding: '0 16px', color: 'var(--text-muted)', fontSize: '20px' }}>🔍</div>
             <input aria-label="Search Apps" 
               type="text" 
@@ -79,11 +88,18 @@ export default function StorefrontPage() {
           
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
             {categories.slice(0, 5).map(cat => (
-              <button key={cat} onClick={() => setSearch(cat)} className="btn-glass" style={{ padding: '8px 20px', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button key={cat} onClick={() => setSearch(cat)} className="btn-glass" style={{ padding: '8px 20px', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--surface)' }}>
                 {cat} <span>➔</span>
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Curved Divider to match Odoo */}
+        <div className="odoo-divider">
+          <svg viewBox="0 0 1200 120" preserveAspectRatio="none">
+            <path d="M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V120H0Z" className="shape-fill"></path>
+          </svg>
         </div>
       </section>
 
@@ -341,19 +357,19 @@ function HorizontalRow({ title, apps, isRanking = false }: { title: string, apps
 function AppCard({ app, rank }: { app: AppListing, rank?: number }) {
   return (
     <a href={`/app?id=${app.id}`} style={{ display: 'block', textDecoration: 'none', minWidth: '140px', maxWidth: '140px', flex: '0 0 auto', position: 'relative', scrollSnapAlign: 'start', transition: 'transform 0.3s' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
-      <div style={{ position: 'relative', width: '140px', height: '140px', marginBottom: '12px' }}>
+      <div style={{ position: 'relative', width: '140px', height: '140px', marginBottom: '16px' }}>
         {rank !== undefined && (
-          <div style={{ position: 'absolute', left: '-20px', bottom: '-20px', fontSize: '120px', fontWeight: 900, color: 'var(--border)', zIndex: 0, lineHeight: 0.8, userSelect: 'none', textShadow: '0 4px 24px rgba(0,0,0,0.1)' }}>
+          <div style={{ position: 'absolute', left: '-20px', bottom: '-20px', fontSize: '120px', fontWeight: 900, color: 'var(--border)', zIndex: 0, lineHeight: 0.8, userSelect: 'none', textShadow: '0 4px 24px rgba(0,0,0,0.05)' }}>
             {rank}
           </div>
         )}
-        <img 
-          src={app.iconUrl} 
-          alt={app.appName} 
-          className="app-glass-icon"
-          style={{ width: '100%', height: '100%', borderRadius: '32px', objectFit: 'cover', position: 'relative', zIndex: 1 }}
-        />
-        <div className="glass-reflection" />
+        <div style={{ width: '100%', height: '100%', borderRadius: '32px', background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1, boxShadow: '0 10px 20px rgba(0,0,0,0.06)' }}>
+          <img 
+            src={app.iconUrl} 
+            alt={app.appName} 
+            style={{ width: '70%', height: '70%', borderRadius: '16px', objectFit: 'cover' }}
+          />
+        </div>
       </div>
       <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: '4px', letterSpacing: '0.3px' }}>
         {app.appName}

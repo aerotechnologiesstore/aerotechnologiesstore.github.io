@@ -15,7 +15,7 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const logoSrc = '/logos/logo-blue-v2.png';
+  const logoSrc = '/logos/logo-main.png';
 
   
 

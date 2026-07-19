@@ -7,7 +7,7 @@ import "../../auth.css";
 
 const THEMES = [
   { bg:'#080400', bg2:'#100800', surface:'#1a0c00', surface2:'#221000', c1:'#FF2D00', c2:'#FF6B00', c3:'#FFB300', border:'rgba(255,107,0,0.15)', glow:'rgba(255,107,0,0.2)', logo:'/logos/logo-orange-v2.png', logoHue: '0deg' },
-  { bg:'#000810', bg2:'#001020', surface:'#001428', surface2:'#001a33', c1:'#00A3FF', c2:'#00D4FF', c3:'#7DF9FF', border:'rgba(0,163,255,0.15)', glow:'rgba(0,163,255,0.2)', logo:'/logos/logo-blue-v2.png', logoHue: '190deg' },
+  { bg:'#000810', bg2:'#001020', surface:'#001428', surface2:'#001a33', c1:'#00A3FF', c2:'#00D4FF', c3:'#7DF9FF', border:'rgba(0,163,255,0.15)', glow:'rgba(0,163,255,0.2)', logo:'/logos/logo-main.png', logoHue: '190deg' },
   { bg:'#0a0018', bg2:'#120020', surface:'#1a0830', surface2:'#220e3a', c1:'#8B5CF6', c2:'#A78BFA', c3:'#DDD6FE', border:'rgba(139,92,246,0.15)', glow:'rgba(139,92,246,0.2)', logo:'/logos/logo-purple-v2.png', logoHue: '260deg' },
   { bg:'#100400', bg2:'#180800', surface:'#201000', surface2:'#2a1400', c1:'#FF4500', c2:'#FF8C00', c3:'#FFD700', border:'rgba(255,140,0,0.15)', glow:'rgba(255,140,0,0.2)', logo:'/logos/logo-rocket-v2.png', logoHue: '45deg' },
 ];

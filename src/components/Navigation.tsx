@@ -29,29 +29,29 @@ export default function Navigation() {
       }}>
         {/* Desktop & Mobile Logo */}
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none' }}>
-          <img src="/logos/logo-blue-v2.png" alt="Aero Store" style={{ width: '32px', height: '32px', borderRadius: '8px', objectFit: 'cover' }} id="nav-logo" />
+          <img src="/logos/logo-main.png" alt="Aero Store" style={{ width: '32px', height: '32px', borderRadius: '8px', objectFit: 'cover' }} id="nav-logo" />
           <span style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '0.5px' }}>Aero Store</span>
         </Link>
 
         {/* Desktop Links */}
-        <div className="nav-desktop-links" style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-          <Link href="/developers/" style={{ color: 'var(--text-main)', textDecoration: 'none', fontWeight: pathname?.includes('/developers') ? 700 : 500, opacity: pathname?.includes('/developers') ? 1 : 0.7 }}>For Developers</Link>
+        <div className="nav-desktop-links" style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <Link href="/developers/" className="btn-glass" style={{ padding: '8px 16px', color: 'var(--text-main)', textDecoration: 'none', fontWeight: pathname?.includes('/developers') ? 700 : 500, opacity: pathname?.includes('/developers') ? 1 : 0.8 }}>For Developers</Link>
           
           {user ? (
             <>
               {userData?.role === 'admin' && (
-                <Link href="/admin/" style={{ padding: '8px 16px', borderRadius: '8px', background: 'rgba(255,77,77,0.1)', border: '1px solid rgba(255,77,77,0.3)', color: '#ff4d4d', textDecoration: 'none', fontWeight: 600 }}>
+                <Link href="/admin/" className="btn-glass" style={{ padding: '8px 16px', color: '#ff4d4d', textDecoration: 'none', fontWeight: 600, border: '1px solid rgba(255,77,77,0.3)' }}>
                   Admin Panel
                 </Link>
               )}
               {(userData?.role === 'developer' || userData?.role === 'admin') && (
-                <Link href="/dashboard/" style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid var(--border)', color: 'var(--text-main)', textDecoration: 'none', fontWeight: 600 }}>
+                <Link href="/dashboard/" className="btn-glass" style={{ padding: '8px 16px', color: 'var(--text-main)', textDecoration: 'none', fontWeight: 600 }}>
                   Dashboard
                 </Link>
               )}
-              <Link href="/profile/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+              <Link href="/profile/" className="btn-glass" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', width: '48px', height: '48px', padding: 0, borderRadius: '50%' }}>
                 {profilePhoto ? (
-                  <img src={profilePhoto} alt="Profile" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--c2)' }} />
+                  <img src={profilePhoto} alt="Profile" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }} />
                 ) : (
                   <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--c1), var(--c2))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold' }}>
                     {initial}
@@ -60,7 +60,7 @@ export default function Navigation() {
               </Link>
             </>
           ) : (
-            <Link href="/login/" style={{ padding: '8px 16px', background: 'linear-gradient(135deg, var(--c1), var(--c2))', color: '#fff', textDecoration: 'none', borderRadius: '8px', fontWeight: 600 }}>
+            <Link href="/login/" className="btn-glass btn-glass-primary" style={{ padding: '8px 24px', fontWeight: 600, textDecoration: 'none' }}>
               Log in
             </Link>
           )}
@@ -84,7 +84,7 @@ export default function Navigation() {
             {/* Mobile Menu Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <img src="/logos/logo-blue-v2.png" alt="Aero Store" style={{ width: '36px', height: '36px', borderRadius: '10px' }} id="mobile-nav-logo" />
+                <img src="/logos/logo-main.png" alt="Aero Store" style={{ width: '36px', height: '36px', borderRadius: '10px' }} id="mobile-nav-logo" />
                 <span style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-main)' }}>Aero Store</span>
               </div>
               <button onClick={() => setMobileMenuOpen(false)} style={{
