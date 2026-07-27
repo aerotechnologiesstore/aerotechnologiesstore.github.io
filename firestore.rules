@@ -1,0 +1,62 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAdmin() {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isModerator() {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager', 'staff'];
+    }
+    
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      // Users can update their own profile, but only admins can change roles
+      allow update: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+    
+    match /apps/{appId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && (request.auth.uid == resource.data.developerId || isModerator());
+      allow delete: if isModerator();
+    }
+    
+    match /developers/{devId} {
+      allow read: if true;
+      allow write: if request.auth != null && (request.auth.uid == devId || isAdmin());
+    }
+
+    match /announcements/{annId} {
+      allow read: if true;
+      allow write: if isModerator();
+    }
+    
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create, update: if request.auth != null;
+      allow delete: if request.auth != null && (request.auth.uid == resource.data.userId || isModerator());
+    }
+    
+    match /support_chats/{chatId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /support_messages/{msgId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    match /verifications/{verId} {
+      allow read: if isModerator() || (request.auth != null && request.auth.uid == resource.data.userId);
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow update, delete: if isModerator();
+    }
+    
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { uploadProfilePicture } from '@/lib/storage';
+import { updateProfilePhoto } from '@/lib/storage';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { updateDeveloperProfile, Developer, submitVerificationRequest, updateVerificationRequest, getDeveloperVerifications, VerificationForm, getMyDeletionRequest, submitDeletionRequest, cancelDeletionRequest, DeletionRequest, subscribeToDeveloperApps, AppListing } from '@/lib/db';
@@ -76,7 +76,7 @@ export default function SettingsPage() {
     
     setUploading(true);
     try {
-      await uploadProfilePicture(file, user.uid);
+      await updateProfilePhoto(file);
       setTimeout(() => {
         window.location.reload();
       }, 1000);
@@ -121,75 +121,75 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <h1 style={{ fontSize: '32px', fontWeight: 800, marginBottom: '8px' }}>Settings</h1>
-      <p style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '32px' }}>Manage your developer account settings and public profile.</p>
+      <h1 className="text-4xl font-extrabold mb-2 text-on-surface">Settings</h1>
+      <p className="text-on-surface-variant mb-8">Manage your developer account settings and public profile.</p>
 
       {/* Avatar Section */}
-      <div className="glass-panel" style={{ padding: '32px', marginBottom: '24px', display: 'flex', gap: '32px', alignItems: 'center' }}>
-        <div style={{ position: 'relative', width: '100px', height: '100px' }}>
+      <div className="bg-surface-container border border-outline-variant p-8 rounded-2xl mb-6 flex gap-8 items-center shadow-sm">
+        <div className="relative w-24 h-24 flex-shrink-0">
           {profilePhoto ? (
-            <img src={profilePhoto} alt="Profile" style={{ width: '100px', height: '100px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--c2)' }} />
+            <img src={profilePhoto} alt="Profile" className="w-24 h-24 rounded-full object-cover border-4 border-primary shadow-sm" />
           ) : (
-            <div style={{ width: '100px', height: '100px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--c1), var(--c2))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '36px', fontWeight: 'bold' }}>
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-primary-container flex items-center justify-center text-on-primary text-4xl font-bold shadow-sm">
               {initial}
             </div>
           )}
-          <label style={{ position: 'absolute', bottom: '-5px', right: '-5px', background: 'var(--bg)', padding: '8px', borderRadius: '50%', cursor: uploading ? 'wait' : 'pointer', border: '1px solid rgba(255,255,255,0.1)', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <label className={`absolute -bottom-1 -right-1 bg-surface p-2 rounded-full border border-outline-variant shadow-md flex items-center justify-center text-sm ${uploading ? 'cursor-wait opacity-50' : 'cursor-pointer hover:bg-surface-variant transition-colors'}`}>
             ✏️
-            <input aria-label="Profile upload" type="file" accept="image/*" style={{ display: 'none' }} disabled={uploading} onChange={handleProfilePhotoChange} />
+            <input aria-label="Profile upload" type="file" accept="image/*" className="hidden" disabled={uploading} onChange={handleProfilePhotoChange} />
           </label>
         </div>
         <div>
-          <h2 style={{ fontSize: '20px', marginBottom: '8px' }}>Profile Picture</h2>
-          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px', margin: 0 }}>Update your public developer avatar. This will automatically sync across the main store and dashboard.</p>
-          {uploading && <div style={{ marginTop: '8px', fontSize: '14px', color: 'var(--c2)' }}>Uploading...</div>}
+          <h2 className="text-xl font-bold text-on-surface mb-1">Profile Picture</h2>
+          <p className="text-sm text-on-surface-variant">Update your public developer avatar. This will automatically sync across the main store and dashboard.</p>
+          {uploading && <div className="mt-2 text-sm text-primary font-semibold">Uploading...</div>}
         </div>
       </div>
 
       <form onSubmit={handleSaveProfile}>
-        <div className="glass-panel" style={{ padding: '32px', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '24px' }}>Public Information</h2>
-          <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', marginBottom: '24px' }}>This information will be displayed on your app listings. Email cannot be changed.</p>
+        <div className="bg-surface-container border border-outline-variant p-8 rounded-2xl mb-6 shadow-sm">
+          <h2 className="text-xl font-bold text-on-surface mb-2">Public Information</h2>
+          <p className="text-sm text-on-surface-variant mb-6">This information will be displayed on your app listings. Email cannot be changed.</p>
           
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="flex flex-col gap-5">
             <div>
-              <label style={{ display: 'block', fontSize: '14px', color: 'rgba(255,255,255,0.8)', marginBottom: '8px', fontWeight: 600 }}>Developer Name * (Locked)</label>
-              <input aria-label="Developer Name" type="text" value={devName} disabled style={{ width: '100%', padding: '12px 16px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'rgba(255,255,255,0.5)', cursor: 'not-allowed', outline: 'none' }} title="Your personal developer name cannot be changed." />
+              <label className="block text-sm font-semibold text-on-surface mb-2">Developer Name * (Locked)</label>
+              <input aria-label="Developer Name" type="text" value={devName} disabled className="w-full px-4 py-3 bg-surface border border-outline-variant rounded-lg text-on-surface-variant cursor-not-allowed outline-none" title="Your personal developer name cannot be changed." />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '14px', color: 'rgba(255,255,255,0.8)', marginBottom: '8px', fontWeight: 600 }}>Organization / Studio Name {isFormLocked && '(Locked)'}</label>
-              <input aria-label="Organization Name" type="text" value={companyName} disabled={isFormLocked} onChange={(e) => setCompanyName(e.target.value)} style={{ width: '100%', padding: '12px 16px', background: isFormLocked ? 'transparent' : 'rgba(255,255,255,0.05)', border: isFormLocked ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', color: isFormLocked ? 'rgba(255,255,255,0.5)' : '#fff', cursor: isFormLocked ? 'not-allowed' : 'text', outline: 'none' }} placeholder="If provided, this overrides Developer Name publicly." />
+              <label className="block text-sm font-semibold text-on-surface mb-2">Organization / Studio Name {isFormLocked && '(Locked)'}</label>
+              <input aria-label="Organization Name" type="text" value={companyName} disabled={isFormLocked} onChange={(e) => setCompanyName(e.target.value)} className={`w-full px-4 py-3 rounded-lg border outline-none transition-colors ${isFormLocked ? 'bg-surface border-outline-variant text-on-surface-variant cursor-not-allowed' : 'bg-surface border-outline text-on-surface focus:border-primary focus:ring-1 focus:ring-primary cursor-text'}`} placeholder="If provided, this overrides Developer Name publicly." />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '14px', color: 'rgba(255,255,255,0.8)', marginBottom: '8px', fontWeight: 600 }}>Organization Email {isFormLocked && '(Locked)'}</label>
-              <input aria-label="Organization Email" type="email" value={orgEmail} disabled={isFormLocked} onChange={(e) => setOrgEmail(e.target.value)} style={{ width: '100%', padding: '12px 16px', background: isFormLocked ? 'transparent' : 'rgba(255,255,255,0.05)', border: isFormLocked ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', color: isFormLocked ? 'rgba(255,255,255,0.5)' : '#fff', cursor: isFormLocked ? 'not-allowed' : 'text', outline: 'none' }} placeholder="Support email shown to users (defaults to personal email if blank)" />
+              <label className="block text-sm font-semibold text-on-surface mb-2">Organization Email {isFormLocked && '(Locked)'}</label>
+              <input aria-label="Organization Email" type="email" value={orgEmail} disabled={isFormLocked} onChange={(e) => setOrgEmail(e.target.value)} className={`w-full px-4 py-3 rounded-lg border outline-none transition-colors ${isFormLocked ? 'bg-surface border-outline-variant text-on-surface-variant cursor-not-allowed' : 'bg-surface border-outline text-on-surface focus:border-primary focus:ring-1 focus:ring-primary cursor-text'}`} placeholder="Support email shown to users (defaults to personal email if blank)" />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '14px', color: 'rgba(255,255,255,0.8)', marginBottom: '8px', fontWeight: 600 }}>Personal Account Email</label>
-              <input aria-label="Email Address" type="text" value={user?.email || ""} disabled style={{ width: '100%', padding: '12px 16px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'rgba(255,255,255,0.5)', cursor: 'not-allowed', outline: 'none' }} />
+              <label className="block text-sm font-semibold text-on-surface mb-2">Personal Account Email</label>
+              <input aria-label="Email Address" type="text" value={user?.email || ""} disabled className="w-full px-4 py-3 bg-surface border border-outline-variant rounded-lg text-on-surface-variant cursor-not-allowed outline-none" />
             </div>
           </div>
         </div>
 
         {developerData && (
-          <div className="glass-panel" style={{ padding: '32px', marginBottom: '24px' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '24px' }}>Address Details</h2>
-            <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', marginBottom: '24px' }}>For safety and compliance, developers must provide a valid address. This is required for verification.</p>
+          <div className="bg-surface-container border border-outline-variant p-8 rounded-2xl mb-6 shadow-sm">
+            <h2 className="text-xl font-bold text-on-surface mb-2">Address Details</h2>
+            <p className="text-sm text-on-surface-variant mb-6">For safety and compliance, developers must provide a valid address. This is required for verification.</p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="flex flex-col gap-5">
               <div>
-                <label style={{ display: 'block', fontSize: '14px', color: 'rgba(255,255,255,0.8)', marginBottom: '8px', fontWeight: 600 }}>Full Address {isFormLocked && '(Locked)'}</label>
-                <textarea aria-label="Full Address" rows={3} value={address} disabled={isFormLocked} onChange={(e) => setAddress(e.target.value)} required style={{ width: '100%', padding: '12px 16px', background: isFormLocked ? 'transparent' : 'rgba(255,255,255,0.05)', border: isFormLocked ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', color: isFormLocked ? 'rgba(255,255,255,0.5)' : '#fff', resize: 'vertical', cursor: isFormLocked ? 'not-allowed' : 'text', outline: 'none' }} />
+                <label className="block text-sm font-semibold text-on-surface mb-2">Full Address {isFormLocked && '(Locked)'}</label>
+                <textarea aria-label="Full Address" rows={3} value={address} disabled={isFormLocked} onChange={(e) => setAddress(e.target.value)} required className={`w-full px-4 py-3 rounded-lg border outline-none transition-colors resize-y ${isFormLocked ? 'bg-surface border-outline-variant text-on-surface-variant cursor-not-allowed' : 'bg-surface border-outline text-on-surface focus:border-primary focus:ring-1 focus:ring-primary cursor-text'}`} />
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(255,255,255,0.05)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', marginTop: '8px' }}>
-                <input type="checkbox" id="displayAddress" checked={!addressPrivate} onChange={(e) => setAddressPrivate(!e.target.checked)} style={{ width: '20px', height: '20px', accentColor: 'var(--c1)', cursor: 'pointer' }} />
-                <label htmlFor="displayAddress" style={{ fontSize: '14px', color: 'rgba(255,255,255,0.9)', cursor: 'pointer' }}>
-                  <strong>Display Address Publicly</strong>
-                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginTop: '4px' }}>If disabled, users will only see your Name, Org Name, and Email. The map is never shown to regular users.</div>
+              <div className="flex items-start gap-3 bg-surface p-4 rounded-xl border border-outline-variant mt-2">
+                <input type="checkbox" id="displayAddress" checked={!addressPrivate} onChange={(e) => setAddressPrivate(!e.target.checked)} className="w-5 h-5 mt-0.5 accent-primary cursor-pointer" />
+                <label htmlFor="displayAddress" className="flex flex-col cursor-pointer">
+                  <strong className="text-sm text-on-surface">Display Address Publicly</strong>
+                  <span className="text-xs text-on-surface-variant mt-1">If disabled, users will only see your Name, Org Name, and Email. The map is never shown to regular users.</span>
                 </label>
               </div>
             </div>
@@ -199,8 +199,7 @@ export default function SettingsPage() {
         <button 
           type="submit" 
           disabled={saving}
-          className="btn-glass btn-glass-primary"
-          style={{ width: '100%', padding: '16px', fontSize: '16px', marginBottom: '40px' }}
+          className="w-full bg-primary text-on-primary py-4 rounded-xl font-bold text-lg hover:bg-primary-container hover:text-on-primary-container transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-10 shadow-md"
         >
           {saving ? 'Saving Changes...' : 'Save Profile Changes'}
         </button>
@@ -209,18 +208,18 @@ export default function SettingsPage() {
 
 
       {/* Account Deletion Section */}
-      <div className="glass-panel" style={{ border: '1px solid rgba(255,77,77,0.3)', padding: '32px', marginBottom: '40px' }}>
-        <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '8px', color: '#ff4d4d' }}>Danger Zone: Delete Developer Account</h2>
-        <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', marginBottom: '24px' }}>
+      <div className="bg-error-container/10 border border-error p-8 rounded-2xl mb-10 shadow-sm">
+        <h2 className="text-xl font-bold text-error mb-2">Danger Zone: Delete Developer Account</h2>
+        <p className="text-sm text-on-surface-variant mb-6">
           Deleting your developer account is a permanent action. You must delete all your apps from the platform before requesting deletion.
         </p>
 
         {deletionRequest ? (
-          <div style={{ background: 'rgba(255,179,0,0.1)', border: '1px solid rgba(255,179,0,0.3)', padding: '24px', borderRadius: '12px' }}>
-            <h3 style={{ color: '#FFB300', marginBottom: '8px', fontSize: '16px' }}>
+          <div className="bg-secondary-container/20 border border-secondary-container p-6 rounded-xl">
+            <h3 className="text-secondary font-bold mb-2">
               {deletionRequest.status === 'accepted' ? 'Deletion Request Accepted' : 'Deletion Request Pending'}
             </h3>
-            <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.8)', marginBottom: '16px' }}>
+            <p className="text-sm text-on-surface-variant mb-4">
               {deletionRequest.status === 'accepted' 
                 ? "Admin has accepted your request. Your account will be permanently deleted in 30 days."
                 : "Your deletion request is waiting for Admin approval (or will auto-delete in 1 year)."}
@@ -236,16 +235,16 @@ export default function SettingsPage() {
                   alert("Failed to cancel deletion request.");
                 }
               }}
-              style={{ padding: '12px 24px', background: 'var(--surface2)', color: '#fff', border: '1px solid var(--border)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}
+              className="px-6 py-3 bg-surface text-on-surface border border-outline rounded-lg font-bold hover:bg-surface-variant transition-colors shadow-sm"
             >
               Cancel Deletion Request
             </button>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ fontSize: '14px' }}>
+          <div className="flex flex-col gap-4">
+            <div className="text-sm text-on-surface">
               <strong>Current Apps:</strong> {apps.length} 
-              {apps.length > 0 && <span style={{ color: '#ff4d4d', marginLeft: '8px' }}>(You must delete these first)</span>}
+              {apps.length > 0 && <span className="text-error ml-2 font-semibold">(You must delete these first)</span>}
             </div>
             
             <textarea
@@ -254,7 +253,7 @@ export default function SettingsPage() {
               onChange={e => setDeletionReason(e.target.value)}
               disabled={apps.length > 0}
               rows={3}
-              style={{ width: '100%', padding: '12px 16px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', color: '#fff', resize: 'vertical', opacity: apps.length > 0 ? 0.5 : 1 }}
+              className={`w-full px-4 py-3 bg-surface border rounded-lg text-on-surface focus:border-error focus:ring-1 focus:ring-error outline-none transition-colors resize-y ${apps.length > 0 ? 'border-outline-variant opacity-50 cursor-not-allowed' : 'border-outline cursor-text'}`}
             />
             
             <button
@@ -275,7 +274,7 @@ export default function SettingsPage() {
                 setSubmittingDeletion(false);
               }}
               disabled={apps.length > 0 || submittingDeletion}
-              style={{ padding: '12px 24px', background: 'rgba(255,77,77,0.1)', color: '#ff4d4d', border: '1px solid rgba(255,77,77,0.3)', borderRadius: '8px', fontWeight: 600, cursor: apps.length > 0 || submittingDeletion ? 'not-allowed' : 'pointer', opacity: apps.length > 0 || submittingDeletion ? 0.5 : 1, width: 'fit-content' }}
+              className={`px-6 py-3 bg-error text-on-error rounded-lg font-bold shadow-sm w-fit transition-all ${apps.length > 0 || submittingDeletion ? 'opacity-50 cursor-not-allowed' : 'hover:bg-error-container hover:text-on-error-container cursor-pointer'}`}
             >
               {submittingDeletion ? 'Submitting...' : 'Request Account Deletion'}
             </button>

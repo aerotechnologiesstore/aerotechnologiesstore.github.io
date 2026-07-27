@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, getDoc, query, orderBy, updateDoc, increment, where, limit, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, getDoc, query, orderBy, updateDoc, increment, where, limit, addDoc, serverTimestamp, deleteDoc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
 export interface Review {
@@ -20,8 +20,14 @@ export interface AppListing {
   version: string;
   apkUrl: string;
   iconUrl: string;
+  bannerUrl?: string;
+  ageRating?: string;
+  containsAds?: boolean;
+  inAppPurchases?: boolean;
   whatsNew?: string;
   status: string;
+  virusScanStatus?: 'clean' | 'suspicious' | 'pending';
+  publishDate?: number | null;
   downloads: number;
   rating: number;
   ratingCount: number;
@@ -34,6 +40,8 @@ export interface AppListing {
   dataShared?: boolean;
   dataEncrypted?: boolean;
   accountDeletion?: boolean;
+  isPlayable?: boolean;
+  playableUrl?: string;
 }
 
 export interface Developer {
@@ -60,6 +68,7 @@ export interface VerificationForm {
   address?: string;
   status: 'submitted' | 'action_required' | 'verified' | 'rejected';
   govtId: string;
+  govtIdUrl?: string;
   remark?: string;
   createdAt: any;
   updatedAt: any;
@@ -81,7 +90,7 @@ export interface DeletionRequest {
  */
 export async function getAllApps(): Promise<AppListing[]> {
   const appsRef = collection(db, 'apps');
-  const q = query(appsRef, where('status', '==', 'published'));
+  const q = query(appsRef, where('status', 'in', ['published', 'paused']));
   
   const querySnapshot = await getDocs(q);
   const apps: AppListing[] = [];
@@ -99,7 +108,7 @@ export async function getAllApps(): Promise<AppListing[]> {
  */
 export async function getAppsByCategory(category: string): Promise<AppListing[]> {
   const appsRef = collection(db, 'apps');
-  const q = query(appsRef, where('category', '==', category), where('status', '==', 'published'));
+  const q = query(appsRef, where('category', '==', category), where('status', 'in', ['published', 'paused']));
   
   const querySnapshot = await getDocs(q);
   const apps: AppListing[] = [];
@@ -117,7 +126,7 @@ export async function getAppsByCategory(category: string): Promise<AppListing[]>
  */
 export async function getPendingApps(): Promise<AppListing[]> {
   const appsRef = collection(db, 'apps');
-  const q = query(appsRef, where('status', '==', 'pending_review'));
+  const q = query(appsRef, where('status', 'in', ['pending_review', 'scheduled']));
   
   const querySnapshot = await getDocs(q);
   const apps: AppListing[] = [];
@@ -133,11 +142,28 @@ export async function getPendingApps(): Promise<AppListing[]> {
 /**
  * Updates an app's status (e.g. to 'published' or 'rejected')
  */
-export async function updateAppStatus(appId: string, status: 'published' | 'rejected'): Promise<void> {
+export async function updateAppStatus(
+  appId: string, 
+  status: 'published' | 'rejected' | 'paused',
+  pausedByUid?: string,
+  pausedByName?: string,
+  pausedByAlias?: string
+): Promise<void> {
   const docRef = doc(db, 'apps', appId);
-  await updateDoc(docRef, {
-    status: status
-  });
+  const updates: any = { status };
+  
+  if (status === 'paused' && pausedByUid) {
+    updates.pausedByUid = pausedByUid;
+    updates.pausedByName = pausedByName || '';
+    updates.pausedByAlias = pausedByAlias || '';
+  } else if (status === 'published') {
+    // Clear pause info when published
+    updates.pausedByUid = null;
+    updates.pausedByName = null;
+    updates.pausedByAlias = null;
+  }
+  
+  await updateDoc(docRef, updates);
 }
 
 /**
@@ -149,6 +175,10 @@ export async function updateAppListing(
     version: string;
     apkUrl: string;
     whatsNew: string;
+    bannerUrl: string;
+    ageRating: string;
+    containsAds: boolean;
+    inAppPurchases: boolean;
   }>
 ): Promise<void> {
   const docRef = doc(db, 'apps', appId);
@@ -322,6 +352,10 @@ export async function getAllUsers(): Promise<any[]> {
  */
 export async function updateUserRole(uid: string, newRole: 'user' | 'developer' | 'staff' | 'manager' | 'admin'): Promise<void> {
   const userRef = doc(db, 'users', uid);
+  const userDoc = await getDoc(userRef);
+  if (userDoc.exists() && userDoc.data().role === 'admin') {
+    throw new Error("Action Denied: You cannot modify or remove an Admin.");
+  }
   await updateDoc(userRef, {
     role: newRole
   });
@@ -332,7 +366,7 @@ export async function updateUserRole(uid: string, newRole: 'user' | 'developer' 
  */
 export async function updateDeveloperProfile(uid: string, updates: Partial<Developer>): Promise<void> {
   const devRef = doc(db, 'developers', uid);
-  await updateDoc(devRef, updates);
+  await setDoc(devRef, updates, { merge: true });
 }
 
 /**
@@ -359,7 +393,7 @@ export async function submitVerificationRequest(developerId: string, govtId: str
 
 export async function updateVerificationRequest(formId: string, govtId: string, snapshot: any): Promise<void> {
   const docRef = doc(db, 'verifications', formId);
-  await updateDoc(docRef, {
+  const updates: any = {
     status: 'submitted', // Reset back to submitted when edited
     govtId,
     developerName: snapshot.developerName || '',
@@ -368,7 +402,11 @@ export async function updateVerificationRequest(formId: string, govtId: string, 
     personalEmail: snapshot.personalEmail || '',
     address: snapshot.address || '',
     updatedAt: serverTimestamp()
-  });
+  };
+  if (snapshot.govtIdUrl) {
+    updates.govtIdUrl = snapshot.govtIdUrl;
+  }
+  await updateDoc(docRef, updates);
 }
 
 export async function getDeveloperVerifications(developerId: string): Promise<VerificationForm[]> {
@@ -466,13 +504,33 @@ export async function revokeVerification(formId: string, developerId: string): P
  */
 
 export async function deleteUserFootprint(uid: string): Promise<void> {
+  const { deleteFromArchiveOrg, deleteFromSupabase } = await import('./storage');
+
+  // Delete User Photo
+  const userSnap = await getDoc(doc(db, 'users', uid));
+  if (userSnap.exists() && userSnap.data().photoURL) {
+    if (userSnap.data().photoURL.includes('supabase.co')) {
+      await deleteFromSupabase(userSnap.data().photoURL);
+    } else {
+      await deleteFromArchiveOrg(userSnap.data().photoURL);
+    }
+  }
   await deleteDoc(doc(db, 'users', uid));
   await deleteDoc(doc(db, 'developers', uid));
   
+  // Delete Verifications & Documents
   const vRef = collection(db, 'verifications');
   const q = query(vRef, where('developerId', '==', uid));
   const snap = await getDocs(q);
   for (const d of snap.docs) {
+    if (d.data().documentUrl) {
+      if (d.data().documentUrl.includes('supabase.co')) {
+        const { deleteFromSupabase } = await import('./storage');
+        await deleteFromSupabase(d.data().documentUrl);
+      } else {
+        await deleteFromArchiveOrg(d.data().documentUrl);
+      }
+    }
     await deleteDoc(doc(db, 'verifications', d.id));
   }
   
@@ -537,7 +595,7 @@ import { onSnapshot } from 'firebase/firestore';
  */
 export function subscribeToPublishedApps(callback: (apps: AppListing[]) => void) {
   const appsRef = collection(db, 'apps');
-  const q = query(appsRef, where('status', '==', 'published'));
+  const q = query(appsRef, where('status', 'in', ['published', 'paused']));
   
   return onSnapshot(q, (snapshot) => {
     const apps: AppListing[] = [];
@@ -588,6 +646,22 @@ export function subscribeToActiveAnnouncements(callback: (anns: Announcement[]) 
  */
 export async function deleteApp(appId: string): Promise<void> {
   const docRef = doc(db, 'apps', appId);
+  const appSnap = await getDoc(docRef);
+  
+  if (appSnap.exists()) {
+    const appData = appSnap.data();
+    try {
+      const { deleteFromArchiveOrg, deleteFromSupabase } = await import('./storage');
+      
+      if (appData.iconUrl) await deleteFromSupabase(appData.iconUrl);
+      if (appData.bannerUrl) await deleteFromSupabase(appData.bannerUrl);
+      if (appData.apkUrl) await deleteFromArchiveOrg(appData.apkUrl);
+      
+    } catch (err) {
+      console.error("Failed to delete associated files", err);
+    }
+  }
+
   await deleteDoc(docRef);
 }
 
@@ -611,14 +685,30 @@ export function subscribeToDeveloperApps(developerId: string, callback: (apps: A
 
 export async function submitReview(appId: string, userId: string, userName: string, rating: number, text: string) {
   const reviewsRef = collection(db, 'reviews');
-  await addDoc(reviewsRef, {
-    appId,
-    userId,
-    userName,
-    rating,
-    text,
-    createdAt: serverTimestamp()
-  });
+  const q = query(reviewsRef, where('appId', '==', appId), where('userId', '==', userId));
+  const snap = await getDocs(q);
+  
+  const isEditing = !snap.empty;
+  let oldRating = 0;
+  
+  if (isEditing) {
+    const docRef = snap.docs[0].ref;
+    oldRating = snap.docs[0].data().rating || 0;
+    await updateDoc(docRef, {
+      rating,
+      text,
+      createdAt: serverTimestamp()
+    });
+  } else {
+    await addDoc(reviewsRef, {
+      appId,
+      userId,
+      userName,
+      rating,
+      text,
+      createdAt: serverTimestamp()
+    });
+  }
 
   // Update app average rating
   const appRef = doc(db, 'apps', appId);
@@ -628,13 +718,22 @@ export async function submitReview(appId: string, userId: string, userName: stri
     const currentRating = data.rating || 0;
     const currentCount = data.ratingCount || 0;
     
-    const newCount = currentCount + 1;
-    const newRating = ((currentRating * currentCount) + rating) / newCount;
+    let newCount = currentCount;
+    let newRating = 0;
     
-    await updateDoc(appRef, {
-      rating: newRating,
-      ratingCount: newCount
-    });
+    if (isEditing) {
+      if (currentCount === 0) {
+         newCount = 1;
+         newRating = rating;
+      } else {
+         newRating = ((currentRating * currentCount) - oldRating + rating) / currentCount;
+      }
+    } else {
+      newCount = currentCount + 1;
+      newRating = ((currentRating * currentCount) + rating) / newCount;
+    }
+    
+    await updateDoc(appRef, { rating: newRating, ratingCount: newCount });
   }
 }
 
@@ -678,6 +777,23 @@ export async function deleteReview(reviewId: string, appId: string) {
       }
     }
   }
+}
+
+export async function getAllReviews(): Promise<(Review & { appName?: string })[]> {
+  const reviewsRef = collection(db, 'reviews');
+  const snapshot = await getDocs(reviewsRef);
+  const reviews: (Review & { appName?: string })[] = [];
+  for (const docSnap of snapshot.docs) {
+    const data = docSnap.data();
+    let appName = 'Unknown App';
+    try {
+      const appSnap = await getDoc(doc(db, 'apps', data.appId));
+      if (appSnap.exists()) appName = appSnap.data().appName || 'Unknown App';
+    } catch (e) {}
+    reviews.push({ id: docSnap.id, appName, ...data } as Review & { appName?: string });
+  }
+  reviews.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+  return reviews;
 }
 
 /**
@@ -725,3 +841,401 @@ export async function getAllUserDownloadHistories(): Promise<DownloadRecord[]> {
   return records;
 }
 
+/**
+ * ==========================================
+ * IN-APP NOTIFICATIONS
+ * ==========================================
+ */
+
+export interface AppNotification {
+  id?: string;
+  userId: string;
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: any;
+  link?: string;
+  important?: boolean;
+  saved?: boolean;
+}
+
+export async function sendNotification(userId: string, title: string, message: string, link?: string, important?: boolean): Promise<void> {
+  const notifRef = collection(db, 'notifications');
+  const payload: any = {
+    userId,
+    title,
+    message,
+    read: false,
+    createdAt: serverTimestamp()
+  };
+  if (link) payload.link = link;
+  if (important) payload.important = important;
+  await addDoc(notifRef, payload);
+}
+
+export function subscribeToNotifications(userId: string, callback: (notifs: AppNotification[]) => void) {
+  const notifRef = collection(db, 'notifications');
+  const q = query(notifRef, where('userId', '==', userId));
+  
+  return onSnapshot(q, (snapshot) => {
+    const notifs: AppNotification[] = [];
+    snapshot.forEach(d => {
+      notifs.push({ id: d.id, ...d.data() } as AppNotification);
+    });
+    notifs.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+    callback(notifs);
+  });
+}
+
+export async function markNotificationsAsRead(userId: string): Promise<void> {
+  const notifRef = collection(db, 'notifications');
+  const q = query(notifRef, where('userId', '==', userId), where('read', '==', false));
+  const snap = await getDocs(q);
+  
+  // Update in parallel
+  await Promise.all(snap.docs.map(d => updateDoc(doc(db, 'notifications', d.id), { read: true })));
+}
+
+export async function markSpecificNotificationsAsRead(notifIds: string[]): Promise<void> {
+  await Promise.all(notifIds.map(id => updateDoc(doc(db, 'notifications', id), { read: true })));
+}
+
+export async function toggleNotificationSaved(notifId: string, saved: boolean): Promise<void> {
+  await updateDoc(doc(db, 'notifications', notifId), { saved });
+}
+
+export async function cleanupExpiredNotifications(userId: string): Promise<void> {
+  const notifRef = collection(db, 'notifications');
+  const q = query(notifRef, where('userId', '==', userId));
+  const snap = await getDocs(q);
+  
+  const now = Date.now();
+  const ONE_DAY = 24 * 60 * 60 * 1000;
+  const SEVEN_DAYS = 7 * ONE_DAY;
+
+  const toDelete = snap.docs.filter(d => {
+    const data = d.data();
+    if (data.saved) return false;
+    
+    if (!data.createdAt) return false;
+    const createdAtTime = data.createdAt.toMillis ? data.createdAt.toMillis() : data.createdAt.seconds * 1000;
+    const age = now - createdAtTime;
+    
+    if (data.important) {
+      return age > SEVEN_DAYS;
+    } else {
+      return age > ONE_DAY;
+    }
+  });
+
+  if (toDelete.length > 0) {
+    import('firebase/firestore').then(({ deleteDoc }) => {
+      Promise.all(toDelete.map(d => deleteDoc(d.ref)));
+    });
+  }
+}
+
+/**
+ * ==========================================
+ * AI CUSTOMER SUPPORT CHAT SYSTEM
+ * ==========================================
+ */
+
+export interface SupportChat {
+  id?: string;
+  customerId: string;
+  customerRole: 'user' | 'developer';
+  status: 'ai_handling' | 'waiting_for_human' | 'human_handling' | 'resolved';
+  agentId?: string;
+  agentAlias?: string; // e.g. "Samantha"
+  customerTyping?: boolean;
+  agentTyping?: boolean;
+  escalationLevel?: 'tier1' | 'tier2' | 'tier3' | 'admin';
+  escalatedAt?: any;
+  agentRating?: number;
+  agentReview?: string;
+  createdAt: any;
+  resolvedAt?: any;
+}
+
+export interface SupportMessage {
+  id?: string;
+  chatId: string;
+  senderId: string; // customerId, agentId, or 'ai_bot'
+  senderRole: 'customer' | 'support' | 'ai';
+  senderName: string; // customer's name, agent's fake name, or 'Aero AI'
+  text: string;
+  createdAt: any;
+  aiAssisted?: boolean;
+}
+
+/**
+ * Creates a new support chat ticket.
+ */
+export async function createSupportChat(customerId: string, customerRole: 'user' | 'developer'): Promise<string> {
+  const chatsRef = collection(db, 'support_chats');
+  const newChat = await addDoc(chatsRef, {
+    customerId,
+    customerRole,
+    status: 'ai_handling',
+    escalationLevel: 'tier1',
+    createdAt: serverTimestamp(),
+    escalatedAt: serverTimestamp()
+  });
+  return newChat.id;
+}
+
+export async function rateSupportChat(chatId: string, rating: number, review?: string): Promise<void> {
+  const chatRef = doc(db, 'support_chats', chatId);
+  const updateData: any = { agentRating: rating };
+  if (review) updateData.agentReview = review;
+  await updateDoc(chatRef, updateData);
+}
+
+export async function escalateSupportChat(chatId: string, newTier: 'tier1' | 'tier2' | 'tier3' | 'admin'): Promise<void> {
+  const chatRef = doc(db, 'support_chats', chatId);
+  await updateDoc(chatRef, {
+    escalationLevel: newTier,
+    escalatedAt: serverTimestamp(),
+    status: 'waiting_for_human',
+    agentId: null,
+    agentAlias: null
+  });
+}
+
+export async function updateTypingStatus(chatId: string, role: 'customer' | 'agent', isTyping: boolean): Promise<void> {
+  const chatRef = doc(db, 'support_chats', chatId);
+  if (role === 'customer') {
+    await updateDoc(chatRef, { customerTyping: isTyping });
+  } else {
+    await updateDoc(chatRef, { agentTyping: isTyping });
+  }
+}
+
+/**
+ * Sends a message in a specific chat.
+ */
+export async function sendChatMessage(chatId: string, senderId: string, senderRole: 'customer' | 'support' | 'ai', senderName: string, text: string, aiAssisted?: boolean) {
+  const msgRef = collection(db, 'support_messages');
+  const payload: any = {
+    chatId,
+    senderId,
+    senderRole,
+    senderName,
+    text,
+    createdAt: serverTimestamp()
+  };
+  if (aiAssisted) payload.aiAssisted = true;
+  await addDoc(msgRef, payload);
+}
+
+/**
+ * Updates a chat's status.
+ */
+export async function updateChatStatus(
+  chatId: string, 
+  status: 'ai_handling' | 'waiting_for_human' | 'human_handling' | 'resolved'
+): Promise<void> {
+  const chatRef = doc(db, 'support_chats', chatId);
+  const updates: any = { status };
+  if (status === 'resolved') {
+    updates.resolvedAt = serverTimestamp();
+  }
+  await updateDoc(chatRef, updates);
+}
+
+/**
+ * Claims a chat as a human agent, providing an AI-generated fake name.
+ */
+export async function claimSupportChat(chatId: string, agentId: string, agentAlias: string): Promise<void> {
+  const chatRef = doc(db, 'support_chats', chatId);
+  await updateDoc(chatRef, {
+    status: 'human_handling',
+    agentId,
+    agentAlias
+  });
+}
+
+/**
+ * Subscribes to the active (unresolved) chat for a specific customer.
+ */
+export function subscribeToUserActiveChat(customerId: string, callback: (chat: SupportChat | null) => void) {
+  const chatsRef = collection(db, 'support_chats');
+  const q = query(chatsRef, where('customerId', '==', customerId), where('status', 'in', ['ai_handling', 'waiting_for_human', 'human_handling']));
+  
+  return onSnapshot(q, (snapshot) => {
+    if (snapshot.empty) {
+      callback(null);
+    } else {
+      // Just in case there are multiple, return the most recent
+      const chats = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as SupportChat));
+      chats.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+      callback(chats[0]);
+    }
+  });
+}
+
+/**
+ * Subscribes to all messages in a specific chat.
+ */
+export function subscribeToChatMessages(chatId: string, callback: (msgs: SupportMessage[]) => void) {
+  const msgsRef = collection(db, 'support_messages');
+  const q = query(msgsRef, where('chatId', '==', chatId));
+  
+  return onSnapshot(q, (snapshot) => {
+    const msgs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as SupportMessage));
+    msgs.sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
+    callback(msgs);
+  });
+}
+
+/**
+ * Subscribes to pending chats for Admin/Staff Dashboard.
+ */
+export function subscribeToPendingSupportChats(callback: (chats: SupportChat[]) => void) {
+  const chatsRef = collection(db, 'support_chats');
+  const q = query(chatsRef, where('status', 'in', ['waiting_for_human', 'human_handling']));
+  
+  return onSnapshot(q, (snapshot) => {
+    const chats = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as SupportChat));
+    chats.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+    callback(chats);
+  });
+}
+
+export function subscribeToResolvedSupportChats(callback: (chats: SupportChat[]) => void) {
+  const chatsRef = collection(db, 'support_chats');
+  const q = query(chatsRef, where('status', '==', 'resolved'), orderBy('createdAt', 'desc'), limit(50));
+  
+  return onSnapshot(q, (snapshot) => {
+    const chats = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as SupportChat));
+    callback(chats);
+  });
+}
+
+/**
+ * Lazy cleanup function. Run this occasionally (e.g., when an admin opens the dashboard).
+ * Deletes resolved chats older than 30 days.
+ */
+export async function cleanupOldChats(): Promise<void> {
+  const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+  const cutoffTime = Date.now() - THIRTY_DAYS_MS;
+  
+  const chatsRef = collection(db, 'support_chats');
+  const q = query(chatsRef, where('status', '==', 'resolved'));
+  const snap = await getDocs(q);
+  
+  for (const docSnap of snap.docs) {
+    const data = docSnap.data();
+    if (data.resolvedAt) {
+      const resolvedTime = data.resolvedAt.toMillis ? data.resolvedAt.toMillis() : data.resolvedAt;
+      if (resolvedTime < cutoffTime) {
+        // Delete messages
+        const msgsRef = collection(db, 'support_messages');
+        const mq = query(msgsRef, where('chatId', '==', docSnap.id));
+        const mSnap = await getDocs(mq);
+        const mPromises = mSnap.docs.map(mDoc => deleteDoc(doc(db, 'support_messages', mDoc.id)));
+        await Promise.all(mPromises);
+        
+        // Delete chat
+        await deleteDoc(doc(db, 'support_chats', docSnap.id));
+      }
+    }
+  }
+}
+
+/**
+ * ==========================================
+ * APP APPEALS SYSTEM
+ * ==========================================
+ */
+
+export interface AppAppeal {
+  id?: string;
+  appId: string;
+  appName: string;
+  developerId: string;
+  adminUid: string;
+  adminName: string;
+  adminAlias: string;
+  message: string;
+  status: 'pending' | 'resolved';
+  createdAt: any;
+}
+
+export async function submitAppAppeal(
+  appId: string,
+  appName: string,
+  developerId: string,
+  adminUid: string,
+  adminName: string,
+  adminAlias: string,
+  message: string
+): Promise<void> {
+  const appealsRef = collection(db, 'app_appeals');
+  await addDoc(appealsRef, {
+    appId,
+    appName,
+    developerId,
+    adminUid,
+    adminName,
+    adminAlias,
+    message,
+    status: 'pending',
+    createdAt: serverTimestamp()
+  });
+}
+
+export function subscribeToAppealsForAdmin(adminUid: string, callback: (appeals: AppAppeal[]) => void) {
+  const appealsRef = collection(db, 'app_appeals');
+  const q = query(appealsRef, where('adminUid', '==', adminUid), where('status', '==', 'pending'));
+  
+  return onSnapshot(q, (snapshot) => {
+    const appeals = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as AppAppeal));
+    appeals.sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+    callback(appeals);
+  });
+}
+
+export async function resolveAppAppeal(appealId: string): Promise<void> {
+  const docRef = doc(db, 'app_appeals', appealId);
+  await updateDoc(docRef, { status: 'resolved' });
+}
+
+export async function checkIfAppealPending(appId: string): Promise<boolean> {
+  const appealsRef = collection(db, 'app_appeals');
+  const q = query(appealsRef, where('appId', '==', appId), where('status', '==', 'pending'));
+  const snap = await getDocs(q);
+  return !snap.empty;
+}
+
+export async function hasUserDownloadedApp(userId: string, appId: string): Promise<boolean> {
+  const downloadsRef = collection(db, 'downloads');
+  const q = query(downloadsRef, where('userId', '==', userId), where('appId', '==', appId));
+  const snap = await getDocs(q);
+  return !snap.empty;
+}
+
+export async function processScheduledApps(): Promise<void> {
+  try {
+    const appsRef = collection(db, 'apps');
+    const q = query(appsRef, where('status', '==', 'scheduled'));
+    const snap = await getDocs(q);
+    const now = Date.now();
+    
+    const updates: Promise<void>[] = [];
+    snap.forEach(docSnap => {
+      const data = docSnap.data();
+      if (data.publishDate && data.publishDate <= now) {
+        updates.push(updateDoc(doc(db, 'apps', docSnap.id), { status: 'published', updatedAt: serverTimestamp() }));
+      }
+    });
+    
+    if (updates.length > 0) {
+      await Promise.all(updates);
+      console.log(`Auto-published ${updates.length} scheduled apps.`);
+    }
+  } catch (err) {
+    console.error("Failed to process scheduled apps:", err);
+  }
+}

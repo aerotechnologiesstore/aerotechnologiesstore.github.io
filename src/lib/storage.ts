@@ -5,62 +5,101 @@ import { supabase } from './supabase';
 
 const BUCKET_NAME = 'aero store';
 
-/**
- * Generic function to upload a file to Supabase Storage.
- */
-async function uploadToSupabase(
-  file: File, 
-  path: string, 
-  onProgress?: (progress: number) => void
-): Promise<string> {
-  // Supabase doesn't easily support chunked progress callbacks in the JS client without complex TUS setups.
-  // We'll simulate 50% on start, 100% on finish for UI feedback.
-  if (onProgress) onProgress(50);
-  
-  const { data, error } = await supabase.storage
-    .from(BUCKET_NAME)
-    .upload(path, file, {
-      upsert: true
-    });
-
-  if (error) {
-    console.error("Supabase Upload Error:", error);
-    throw error;
-  }
-
-  if (onProgress) onProgress(100);
-
-  // Get public URL
-  const { data: publicUrlData } = supabase.storage
-    .from(BUCKET_NAME)
-    .getPublicUrl(path);
-
-  return publicUrlData.publicUrl;
+export interface UploadProgressEvent {
+  progress: number;
+  loaded: number;
+  total: number;
+  speed: number;
+  timeRemaining: number;
 }
 
 /**
- * Helper to delete a file from Supabase using its public URL
+ * Upload a file to Archive.org via the Cloudflare Worker proxy.
+ * ALL files (APKs, icons, banners, documents) go through this single storage engine.
+ */
+async function uploadToArchiveOrg(
+  file: File,
+  identifier: string,
+  filename: string,
+  title: string,
+  onProgress?: (event: UploadProgressEvent) => void
+): Promise<string> {
+  const workerUrl = process.env.NEXT_PUBLIC_ARCHIVE_ORG_WORKER_URL || '';
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const endpoint = `${workerUrl}/${encodeURIComponent(identifier)}/${encodeURIComponent(filename)}`;
+
+    xhr.open('PUT', endpoint, true);
+    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+    xhr.setRequestHeader('x-archive-meta-mediatype', 'software');
+    xhr.setRequestHeader('x-archive-meta-title', title);
+    xhr.setRequestHeader('x-archive-meta-description', `${title} - Distributed via Aero Store`);
+
+    const startTime = Date.now();
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) {
+        const now = Date.now();
+        const timeElapsed = (now - startTime) / 1000;
+        const speed = timeElapsed > 0 ? e.loaded / timeElapsed : 0;
+        const timeRemaining = speed > 0 ? (e.total - e.loaded) / speed : 0;
+        const progress = Math.min(100, Math.round((e.loaded / e.total) * 100));
+
+        onProgress({ progress, loaded: e.loaded, total: e.total, speed, timeRemaining });
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        if (onProgress) {
+          onProgress({ progress: 100, loaded: file.size, total: file.size, speed: 0, timeRemaining: 0 });
+        }
+        const downloadUrl = `https://archive.org/download/${encodeURIComponent(identifier)}/${encodeURIComponent(filename)}`;
+        resolve(downloadUrl);
+      } else {
+        console.error("Archive.org Upload Error:", xhr.status, xhr.responseText);
+        reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
+      }
+    };
+
+    xhr.onerror = () => {
+      console.error("Network Error during upload");
+      reject(new Error('Network Error during upload'));
+    };
+
+    xhr.send(file);
+  });
+}
+
+/**
+ * Helper: Generate a unique Archive.org identifier and filename
+ */
+function makeArchiveId(prefix: string, developerId: string, name: string) {
+  const timestamp = Date.now();
+  const sanitized = name.replace(/[^a-zA-Z0-9-_]/g, '_').toLowerCase();
+  const identifier = `aero-store-${prefix}-${sanitized}-${timestamp}`;
+  return { identifier, timestamp, sanitized };
+}
+
+/**
+ * Helper to delete a file from Supabase using its public URL (legacy cleanup)
  */
 export async function deleteFromSupabase(publicUrl: string): Promise<void> {
   try {
-    // The public URL looks like: https://[project].supabase.co/storage/v1/object/public/aero%20store/path/to/file
-    const parts = publicUrl.split(`/public/${encodeURIComponent(BUCKET_NAME)}/`);
+    const BUCKET = 'aero store';
+    const parts = publicUrl.split(`/public/${encodeURIComponent(BUCKET)}/`);
     if (parts.length === 2) {
       const path = parts[1];
-      const { error } = await supabase.storage.from(BUCKET_NAME).remove([path]);
-      if (error) {
-        console.error("Supabase Delete Error:", error);
-      }
+      const { error } = await supabase.storage.from(BUCKET).remove([path]);
+      if (error) console.error("Supabase Delete Error:", error);
     } else {
-       // Also check if it's not encoded
-       const partsUnencoded = publicUrl.split(`/public/${BUCKET_NAME}/`);
-       if (partsUnencoded.length === 2) {
-           const path = partsUnencoded[1];
-           const { error } = await supabase.storage.from(BUCKET_NAME).remove([path]);
-           if (error) {
-               console.error("Supabase Delete Error:", error);
-           }
-       }
+      const partsUnencoded = publicUrl.split(`/public/${BUCKET}/`);
+      if (partsUnencoded.length === 2) {
+        const path = partsUnencoded[1];
+        const { error } = await supabase.storage.from(BUCKET).remove([path]);
+        if (error) console.error("Supabase Delete Error:", error);
+      }
     }
   } catch (err) {
     console.error("Failed to delete from Supabase:", err);
@@ -68,14 +107,33 @@ export async function deleteFromSupabase(publicUrl: string): Promise<void> {
 }
 
 /**
- * Uploads a profile picture and updates the user's Auth profile and Firestore doc.
+ * Uploads media to Supabase Storage (Icons, Banners, Photos)
  */
-export async function uploadProfilePicture(file: File, uid: string, onProgress?: (progress: number) => void): Promise<string> {
-  if (!auth.currentUser) throw new Error("Must be logged in to upload profile picture.");
-  if (auth.currentUser.uid !== uid) throw new Error("Unauthorized to modify this profile.");
+async function uploadMediaToSupabase(file: File, folder: string, onProgress?: (event: UploadProgressEvent) => void): Promise<string> {
+  const filePath = `${folder}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+  
+  if (onProgress) onProgress({ progress: 50, loaded: file.size / 2, total: file.size, speed: 0, timeRemaining: 0 });
 
-  const path = `profiles/${uid}/${Date.now()}_${file.name}`;
-  const photoURL = await uploadToSupabase(file, path, onProgress);
+  const { data, error } = await supabase.storage.from(BUCKET_NAME).upload(filePath, file, { cacheControl: '3600', upsert: false });
+
+  if (error) {
+    console.error("Supabase Upload Error:", error);
+    throw new Error(`Upload Failed: ${error.message}`);
+  }
+  
+  if (onProgress) onProgress({ progress: 100, loaded: file.size, total: file.size, speed: 0, timeRemaining: 0 });
+
+  const { data: publicUrlData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(filePath);
+  return publicUrlData.publicUrl;
+}
+
+/**
+ * Uploads a user profile photo to Supabase.
+ */
+export async function updateProfilePhoto(file: File): Promise<string> {
+  if (!auth.currentUser) throw new Error("Not authenticated");
+  const uid = auth.currentUser.uid;
+  const photoURL = await uploadMediaToSupabase(file, `profiles/${uid}`);
 
   await updateProfile(auth.currentUser, { photoURL });
   const userRef = doc(db, 'users', uid);
@@ -87,17 +145,28 @@ export async function uploadProfilePicture(file: File, uid: string, onProgress?:
 /**
  * Uploads an APK file and returns the URL.
  */
-export async function uploadAppFile(file: File, developerId: string, appName: string, onProgress?: (progress: number) => void): Promise<string> {
-  const path = `apps/${developerId}/${appName}/app_${Date.now()}.apk`;
-  return uploadToSupabase(file, path, onProgress);
+export async function uploadAppFile(file: File, developerId: string, appName: string, onProgress?: (event: UploadProgressEvent) => void): Promise<string> {
+  const { identifier, sanitized } = makeArchiveId('apk', developerId, appName);
+  const filename = `${sanitized}.apk`;
+  return uploadToArchiveOrg(file, identifier, filename, appName, onProgress);
 }
 
 /**
  * Uploads an App Icon and returns the URL.
  */
-export async function uploadAppIcon(file: File, developerId: string, appName: string, onProgress?: (progress: number) => void): Promise<string> {
-  const path = `apps/${developerId}/${appName}/icon_${Date.now()}_${file.name}`;
-  return uploadToSupabase(file, path, onProgress);
+export async function uploadAppIcon(file: File, developerId: string, appName: string, onProgress?: (event: UploadProgressEvent) => void): Promise<string> {
+  return uploadMediaToSupabase(file, `icons/${developerId}`, onProgress);
+}
+
+export async function uploadAppBanner(file: File, developerId: string, appName: string, onProgress?: (event: UploadProgressEvent) => void): Promise<string> {
+  return uploadMediaToSupabase(file, `banners/${developerId}`, onProgress);
+}
+
+/**
+ * Uploads a Government ID Document and returns the URL.
+ */
+export async function uploadGovtIdDocument(file: File, developerId: string, onProgress?: (event: UploadProgressEvent) => void): Promise<string> {
+  return uploadMediaToSupabase(file, `verifications/${developerId}`, onProgress);
 }
 
 /**
@@ -119,8 +188,50 @@ export async function submitAppListing(
   dataCollected: boolean = false,
   dataShared: boolean = false,
   dataEncrypted: boolean = false,
-  accountDeletion: boolean = false
+  accountDeletion: boolean = false,
+  bannerUrl?: string,
+  ageRating?: string,
+  containsAds?: boolean,
+  inAppPurchases?: boolean,
+  virusScanStatus: 'clean' | 'suspicious' | 'pending' = 'pending',
+  status: string = 'pending_review',
+  publishDate: number | null = null,
+  isPlayable: boolean = false,
+  playableUrl?: string
 ) {
+  let finalStatus = status;
+  let finalScanStatus = virusScanStatus;
+  let scanLog = '';
+  let finalScheduledFor = scheduledFor;
+
+  try {
+    const { runFullSecurityScan } = await import('@/lib/security');
+    const { overallStatus, log } = await runFullSecurityScan(
+      appName,
+      description,
+      developerId,
+      category,
+      apkUrl
+    );
+    
+    finalScanStatus = overallStatus;
+    scanLog = log;
+
+    if (overallStatus === 'clean') {
+      finalStatus = 'scheduled';
+      const delayMs = isPlayable ? (2 * 60 * 60 * 1000) : (24 * 60 * 60 * 1000);
+      finalScheduledFor = Date.now() + delayMs;
+    } else {
+      finalStatus = 'pending_review';
+      finalScheduledFor = null;
+    }
+  } catch (error) {
+    console.error("Security Scan failed during submission:", error);
+    finalScanStatus = 'suspicious'; // Default to suspicious if scan fails
+    finalStatus = 'pending_review';
+    finalScheduledFor = null;
+  }
+
   const appsCollection = collection(db, 'apps');
   const appData = {
     developerId,
@@ -131,8 +242,11 @@ export async function submitAppListing(
     apkUrl,
     iconUrl,
     sourceType,
-    scheduledFor,
-    status: 'pending_review',
+    scheduledFor: finalScheduledFor,
+    status: finalStatus,
+    publishDate,
+    virusScanStatus: finalScanStatus,
+    securityScanLog: scanLog,
     downloads: 0,
     rating: 0,
     createdAt: serverTimestamp(),
@@ -143,7 +257,13 @@ export async function submitAppListing(
     dataCollected,
     dataShared,
     dataEncrypted,
-    accountDeletion
+    accountDeletion,
+    bannerUrl: bannerUrl || null,
+    ageRating: ageRating || '3+',
+    containsAds: containsAds || false,
+    inAppPurchases: inAppPurchases || false,
+    isPlayable,
+    playableUrl: playableUrl || null
   };
 
   const docRef = await addDoc(appsCollection, appData);
@@ -153,7 +273,44 @@ export async function submitAppListing(
 /**
  * Uploads media (image/video) for an announcement.
  */
-export async function uploadAnnouncementMedia(file: File, onProgress?: (progress: number) => void): Promise<string> {
-  const path = `announcements/${Date.now()}_${file.name}`;
-  return uploadToSupabase(file, path, onProgress);
+export async function uploadAnnouncementMedia(file: File, onProgress?: (event: UploadProgressEvent) => void): Promise<string> {
+  return uploadMediaToSupabase(file, `announcements`, onProgress);
+}
+
+/**
+ * Permanently deletes a file from Archive.org via the Cloudflare Proxy.
+ * @param url The public Archive.org URL of the file to delete.
+ */
+export async function deleteFromArchiveOrg(url: string): Promise<void> {
+  if (!url || !url.includes('archive.org/download/')) return;
+
+  const workerUrl = process.env.NEXT_PUBLIC_ARCHIVE_ORG_WORKER_URL;
+  if (!workerUrl) {
+    console.error("Cannot delete from Archive.org: Worker URL missing");
+    return;
+  }
+
+  try {
+    // Extract identifier and filename from URL
+    // Format: https://archive.org/download/IDENTIFIER/FILENAME
+    const parts = url.split('archive.org/download/')[1].split('/');
+    if (parts.length < 2) return;
+    
+    const identifier = parts[0];
+    const filename = parts.slice(1).join('/'); // In case filename has slashes
+
+    const endpoint = `${workerUrl}/${encodeURIComponent(identifier)}/${encodeURIComponent(filename)}`;
+    
+    const response = await fetch(endpoint, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to delete: ${response.status} ${response.statusText}`);
+    }
+    
+    console.log(`Successfully deleted ${filename} from Archive.org`);
+  } catch (err) {
+    console.error("Error deleting from Archive.org:", err);
+  }
 }

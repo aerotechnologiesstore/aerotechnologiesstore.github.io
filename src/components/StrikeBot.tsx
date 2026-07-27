@@ -2,21 +2,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { subscribeToActiveAnnouncements, Announcement } from '@/lib/db';
-import Groq from 'groq-sdk';
+import { usePathname } from 'next/navigation';
 
 type Message = { id: string; sender: 'bot' | 'user'; text: string; options?: string[]; isTicketOption?: boolean };
-
-const getGroqKey = () => {
-  const rev = process.env.NEXT_PUBLIC_GROQ_API_KEY_REV || '';
-  return rev.split('').reverse().join('');
-};
-const rawGroqKey = getGroqKey();
-
-// Initialize Groq (we pass dangerouslyAllowBrowser because we don't have a backend server)
-const groq = new Groq({ 
-    apiKey: rawGroqKey,
-    dangerouslyAllowBrowser: true 
-});
 
 const renderFormattedText = (text: string) => {
   const parts = text.split(/(\*\*.*?\*\*)/g);
@@ -29,6 +17,7 @@ const renderFormattedText = (text: string) => {
 };
 
 export default function StrikeBot() {
+  const pathname = usePathname();
   const { user, userData } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -154,17 +143,34 @@ Role: ${userData?.role || 'Guest'}
 `;
 
     try {
-      if (!rawGroqKey) throw new Error("Missing API Key");
+      // Build conversation history from all previous messages
+      const conversationHistory: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
+        { role: 'system', content: systemPrompt },
+      ];
       
-      const chatCompletion = await groq.chat.completions.create({
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userText },
-        ],
-        model: 'llama-3.1-8b-instant',
-        temperature: 0.5,
-        max_tokens: 150,
+      // Add all previous messages as conversation context
+      for (const m of messages) {
+        if (m.text === '...' || m.id.endsWith('temp')) continue; // Skip typing indicators
+        conversationHistory.push({
+          role: m.sender === 'user' ? 'user' : 'assistant',
+          content: m.text,
+        });
+      }
+      
+      // Add the current new user message
+      conversationHistory.push({ role: 'user', content: userText });
+
+      const res = await fetch('/api/groq', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: conversationHistory,
+          model: 'llama-3.1-8b-instant',
+          temperature: 0.5,
+          max_tokens: 200,
+        })
       });
+      const chatCompletion = await res.json();
 
       let responseText = chatCompletion.choices[0]?.message?.content || "I couldn't generate a response.";
       let isTicketOption = false;
@@ -209,79 +215,80 @@ Role: ${userData?.role || 'Guest'}
   const handleOptionClick = (option: string) => {
     setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'user', text: option }]);
     
-    setTimeout(() => {
+    setTimeout(async () => {
       if (option === 'Create Ticket') {
-        setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'bot', text: "I've drafted a support ticket with your chat history. Click below to send it to our team!" }]);
+        if (!user) {
+           setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'bot', text: "Please log in first to create a ticket." }]);
+           return;
+        }
+        setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'bot', text: "I am creating your support chat..." }]);
         setFlowState('done');
         
-        const isDev = userData?.role === 'developer' || userData?.role === 'manager' || userData?.role === 'admin';
-        const email = isDev ? 'aerotechnologies.dev@gmail.com' : 'aerotechnologies.store@gmail.com';
-        const subject = encodeURIComponent(`[${isDev ? 'Dev Support' : 'User Support'}] StrikeBot Escalation`);
-        
-        let chatHistory = "--- Chat History ---\n";
-        messages.forEach(m => {
-          if (!m.options || m.options.length === 0) chatHistory += `${m.sender === 'bot' ? 'Strike' : 'User'}: ${m.text}\n`;
-        });
-        chatHistory += "--------------------\n\n";
-        
-        chatHistory += "--- User Details ---\n";
-        chatHistory += `Name: ${userData?.displayName || 'Guest'}\n`;
-        chatHistory += `Email: ${user?.email || 'Not logged in'}\n`;
-        chatHistory += `Firebase UID: ${user?.uid || 'N/A'}\n`;
-        chatHistory += `Role: ${userData?.role || 'Guest'}\n`;
-        chatHistory += "--------------------\n\n";
-        
-        const body = encodeURIComponent(chatHistory);
-        
-        setTimeout(() => {
-          if (window.confirm("This message will be sent to Aero Technologies. Please click the send button on your email client after reviewing the draft.")) {
-            window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+        try {
+          const { createSupportChat, sendChatMessage, updateChatStatus } = await import('@/lib/db');
+          const role = (userData?.role === 'developer' || userData?.role === 'manager' || userData?.role === 'admin') ? 'developer' : 'user';
+          const chatId = await createSupportChat(user.uid, role);
+          
+          for (const m of messages) {
+            if (!m.options || m.options.length === 0) {
+              const senderRole = m.sender === 'bot' ? 'ai' : 'customer';
+              const senderName = m.sender === 'bot' ? 'Strike AI' : (userData?.displayName || user.displayName || 'Customer');
+              await sendChatMessage(chatId, m.sender === 'bot' ? 'ai_bot' : user.uid, senderRole, senderName, m.text);
+            }
           }
-        }, 500);
+          await updateChatStatus(chatId, 'waiting_for_human');
+          
+          window.location.href = '/support';
+        } catch (error) {
+          console.error("Escalation failed", error);
+          setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'bot', text: "Failed to create support chat. Please try again later." }]);
+        }
       } else {
         setMessages(prev => [...prev, { id: Date.now().toString(), sender: 'bot', text: "Alright! Let me know if you need anything else." }]);
       }
     }, 600);
   };
 
+  if (pathname?.startsWith('/support')) return null;
+
   return (
-    <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999 }}>
+    <div className="fixed bottom-6 right-6 z-[9999]">
       {!isOpen ? (
         <button 
           onClick={() => setIsOpen(true)}
-          style={{ width: '60px', height: '60px', borderRadius: '30px', background: 'var(--c1)', color: '#fff', border: 'none', cursor: 'pointer', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}
+          className="w-16 h-16 rounded-full bg-primary text-on-primary border-none cursor-pointer shadow-lg hover:bg-primary-container hover:text-on-primary-container transition-colors flex items-center justify-center text-3xl"
           aria-label="Open Strike Support"
         >
           ⚡
         </button>
       ) : (
-        <div style={{ width: 'calc(100vw - 48px)', maxWidth: '350px', height: '500px', maxHeight: 'calc(100vh - 100px)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '24px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 12px 48px rgba(0,0,0,0.5)' }}>
-          <div style={{ background: 'var(--surface2)', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ width: '32px', height: '32px', borderRadius: '16px', background: 'var(--c1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>⚡</div>
+        <div className="w-[calc(100vw-48px)] max-w-[350px] h-[500px] max-h-[calc(100vh-100px)] bg-surface-container border border-outline-variant rounded-3xl flex flex-col overflow-hidden shadow-2xl">
+          <div className="bg-primary/5 p-4 flex justify-between items-center border-b border-outline-variant">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-xl text-on-primary">⚡</div>
               <div>
-                <div style={{ fontWeight: 700, fontSize: '16px' }}>Strike</div>
-                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>
+                <div className="font-bold text-on-surface text-lg">Strike</div>
+                <div className="text-xs text-on-surface-variant font-semibold">
                   Aero Store AI
                 </div>
               </div>
             </div>
-            <button onClick={() => setIsOpen(false)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }}>×</button>
+            <button onClick={() => setIsOpen(false)} className="bg-transparent border-none text-on-surface-variant hover:text-on-surface text-3xl cursor-pointer p-0 m-0">&times;</button>
           </div>
           
-          <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
             {messages.map((m, i) => (
-              <div key={m.id} style={{ alignSelf: m.sender === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
-                <div style={{ background: m.sender === 'user' ? 'var(--c1)' : 'rgba(255,255,255,0.05)', padding: '12px 16px', borderRadius: m.sender === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px', fontSize: '14px', lineHeight: 1.5, color: '#fff', whiteSpace: 'pre-wrap' }}>
+              <div key={m.id} className={`max-w-[85%] ${m.sender === 'user' ? 'self-end' : 'self-start'}`}>
+                <div className={`p-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${m.sender === 'user' ? 'bg-primary text-on-primary rounded-br-sm' : 'bg-surface border border-outline-variant text-on-surface rounded-bl-sm shadow-sm'}`}>
                   {renderFormattedText(m.text)}
                 </div>
                 {m.options && m.options.length > 0 && i === messages.length - 1 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+                  <div className="flex flex-col gap-2 mt-3">
                     {m.options.map(opt => (
                       <button 
                         key={opt}
                         onClick={() => handleOptionClick(opt)}
-                        style={{ padding: '8px 16px', background: 'transparent', border: '1px solid var(--c1)', color: 'var(--c1)', borderRadius: '16px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s' }}
+                        className="py-2 px-4 bg-transparent border border-primary text-primary rounded-full text-sm font-bold cursor-pointer text-center hover:bg-primary/10 transition-colors"
                       >
                         {opt}
                       </button>
@@ -293,19 +300,19 @@ Role: ${userData?.role || 'Guest'}
             <div ref={chatEndRef} />
           </div>
 
-          <form onSubmit={handleSubmit} style={{ padding: '16px', borderTop: '1px solid var(--border)', background: 'var(--surface2)', display: 'flex', gap: '8px', boxSizing: 'border-box' }}>
+          <form onSubmit={handleSubmit} className="p-4 border-t border-outline-variant bg-surface flex gap-3">
             <input 
               type="text" 
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={flowState === 'chatting' ? "Describe your issue..." : "Ticket sent."}
               disabled={flowState !== 'chatting'}
-              style={{ flex: 1, minWidth: 0, padding: '12px', borderRadius: '100px', border: '1px solid var(--border)', background: 'rgba(255,255,255,0.05)', color: '#fff', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+              className="flex-1 min-w-0 p-3 rounded-full border border-outline-variant bg-surface-container text-on-surface text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50"
             />
             <button 
               type="submit" 
               disabled={flowState !== 'chatting' || !input.trim()}
-              style={{ padding: '0 16px', borderRadius: '100px', background: 'var(--c1)', color: '#fff', border: 'none', fontWeight: 600, cursor: flowState !== 'chatting' || !input.trim() ? 'not-allowed' : 'pointer', opacity: flowState !== 'chatting' || !input.trim() ? 0.5 : 1, flexShrink: 0 }}
+              className="px-5 rounded-full bg-primary text-on-primary border-none font-bold cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary-container hover:text-on-primary-container transition-colors"
             >
               Send
             </button>

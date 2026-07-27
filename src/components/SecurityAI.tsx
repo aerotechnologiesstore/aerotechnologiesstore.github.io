@@ -1,15 +1,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
-import Groq from 'groq-sdk';
 import { db } from '@/lib/firebase';
 import { collection, updateDoc, doc, deleteDoc, getDocs, query, where } from 'firebase/firestore';
-
-const getGroqKey = () => {
-  const rev = process.env.NEXT_PUBLIC_GROQ_API_KEY_REV || '';
-  return rev.split('').reverse().join('');
-};
-const rawGroqKey = getGroqKey();
-const groq = new Groq({ apiKey: rawGroqKey, dangerouslyAllowBrowser: true });
 
 export default function SecurityAIDashboard({ users, apps }: { users: any[], apps: any[] }) {
   const [messages, setMessages] = useState<{role: 'system'|'user'|'assistant', content: string}[]>([]);
@@ -34,7 +26,7 @@ export default function SecurityAIDashboard({ users, apps }: { users: any[], app
   }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim() || !rawGroqKey) return;
+    if (!input.trim()) return;
     
     const userMsg = input.trim();
     setInput('');
@@ -43,13 +35,18 @@ export default function SecurityAIDashboard({ users, apps }: { users: any[], app
     setLoading(true);
 
     try {
-      const completion = await groq.chat.completions.create({
-        messages: newMsgs,
-        model: 'llama-3.1-8b-instant',
-        temperature: 0.5,
+      const res = await fetch('/api/groq', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: newMsgs,
+          model: 'llama-3.1-8b-instant',
+          temperature: 0.5,
+        })
       });
+      const completion = await res.json();
       
-      const reply = completion.choices[0]?.message?.content || "Connection lost.";
+      const reply = completion.choices?.[0]?.message?.content || "Connection lost.";
       setMessages([...newMsgs, { role: 'assistant', content: reply }]);
     } catch (e: any) {
       setMessages([...newMsgs, { role: 'assistant', content: "Error connecting to AI Core: " + e.message }]);
@@ -84,58 +81,53 @@ export default function SecurityAIDashboard({ users, apps }: { users: any[], app
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px' }}>
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       
       {/* AI Chat Interface */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '24px', display: 'flex', flexDirection: 'column', height: '600px' }}>
-        <div style={{ padding: '24px', borderBottom: '1px solid var(--border)', background: 'rgba(0,163,255,0.05)', borderRadius: '24px 24px 0 0', display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ fontSize: '32px' }}>🤖</div>
+      <div className="lg:col-span-2 bg-surface border border-outline-variant rounded-3xl flex flex-col h-[600px] shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-outline-variant bg-primary/5 flex items-center gap-4">
+          <div className="text-4xl">🤖</div>
           <div>
-            <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 800 }}>Suspicious Activity Tracking AI</h2>
-            <div style={{ fontSize: '13px', color: '#00A3FF', fontWeight: 600 }}>System Active & Monitoring</div>
+            <h2 className="m-0 text-xl font-bold text-on-surface">Suspicious Activity Tracking AI</h2>
+            <div className="text-sm text-primary font-bold">System Active & Monitoring</div>
           </div>
         </div>
 
-        <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
           {messages.filter(m => m.role !== 'system').map((msg, i) => (
-            <div key={i} style={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
-              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '4px', textAlign: msg.role === 'user' ? 'right' : 'left' }}>
+            <div key={i} className={`flex flex-col max-w-[85%] ${msg.role === 'user' ? 'self-end' : 'self-start'}`}>
+              <div className={`text-xs text-on-surface-variant font-bold mb-1 ${msg.role === 'user' ? 'text-right text-primary' : 'text-left'}`}>
                 {msg.role === 'user' ? 'Admin' : 'Security AI'}
               </div>
-              <div style={{ 
-                background: msg.role === 'user' ? 'var(--c1)' : 'rgba(255,255,255,0.05)',
-                color: '#fff',
-                padding: '16px',
-                borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                border: msg.role === 'assistant' ? '1px solid var(--border)' : 'none',
-                whiteSpace: 'pre-wrap',
-                lineHeight: 1.5,
-                fontSize: '14px'
-              }}>
+              <div className={`p-4 font-body-md whitespace-pre-wrap leading-relaxed ${
+                msg.role === 'user' 
+                  ? 'bg-primary text-on-primary rounded-2xl rounded-tr-sm' 
+                  : 'bg-surface-container-highest text-on-surface rounded-2xl rounded-tl-sm border border-outline-variant/50'
+              }`}>
                 {msg.content}
               </div>
             </div>
           ))}
           {loading && (
-            <div style={{ alignSelf: 'flex-start', color: 'rgba(255,255,255,0.5)', fontSize: '14px', padding: '16px' }}>
+            <div className="self-start text-on-surface-variant text-sm font-bold p-4 animate-pulse">
               Tracking...
             </div>
           )}
         </div>
 
-        <div style={{ padding: '24px', borderTop: '1px solid var(--border)', display: 'flex', gap: '12px' }}>
+        <div className="p-4 border-t border-outline-variant flex gap-3 bg-surface-container-low">
           <input 
             type="text" 
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Type 'Track User [UID]' or ask for a report..."
-            style={{ flex: 1, padding: '16px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '12px', color: '#fff', fontSize: '16px' }}
+            className="flex-1 p-4 bg-surface border border-outline-variant rounded-xl text-on-surface text-base focus:outline-none focus:ring-2 focus:ring-primary transition-all"
           />
           <button 
             onClick={handleSend}
             disabled={loading || !input.trim()}
-            style={{ padding: '0 24px', background: 'var(--c2)', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 700, cursor: 'pointer', opacity: loading || !input.trim() ? 0.5 : 1 }}
+            className="px-6 bg-error text-white rounded-xl font-bold cursor-pointer disabled:opacity-50 hover:bg-error/90 transition-colors shadow-sm whitespace-nowrap"
           >
             Send Command
           </button>
@@ -143,21 +135,31 @@ export default function SecurityAIDashboard({ users, apps }: { users: any[], app
       </div>
 
       {/* Target Action Panel */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '24px', padding: '24px', overflowY: 'auto', height: '600px' }}>
-        <h3 style={{ margin: '0 0 24px 0', fontSize: '18px', fontWeight: 700 }}>Quick Actions & Targets</h3>
-        <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.6)', marginBottom: '24px', lineHeight: 1.5 }}>
+      <div className="bg-surface border border-outline-variant rounded-3xl p-6 overflow-y-auto h-[600px] shadow-sm">
+        <h3 className="m-0 mb-6 text-lg font-bold text-on-surface">Quick Actions & Targets</h3>
+        <p className="text-sm text-on-surface-variant mb-6 leading-relaxed">
           If the AI flags a user, or you suspect malicious activity, you can forcefully disable or terminate their account here.
         </p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div className="flex flex-col gap-4">
           {users.map(u => (
-            <div key={u.uid} style={{ background: 'var(--bg)', border: '1px solid rgba(255,77,77,0.2)', borderRadius: '12px', padding: '16px' }}>
-              <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>{u.displayName || 'Unnamed User'}</div>
-              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginBottom: '12px', fontFamily: 'monospace' }}>UID: {u.uid}</div>
+            <div key={u.uid} className="bg-surface-container-low border border-error/20 rounded-2xl p-4 hover:border-error/50 transition-colors">
+              <div className="font-bold text-sm text-on-surface mb-1">{u.displayName || 'Unnamed User'}</div>
+              <div className="text-xs text-on-surface-variant mb-4 font-mono">UID: {u.uid}</div>
               
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button onClick={() => handleDisableUser(u.uid)} style={{ flex: 1, padding: '8px', background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>Disable Login</button>
-                <button onClick={() => handleDeleteUser(u.uid)} style={{ flex: 1, padding: '8px', background: 'rgba(255,77,77,0.2)', color: '#ff4d4d', border: '1px solid rgba(255,77,77,0.3)', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}>Terminate</button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => handleDisableUser(u.uid)} 
+                  className="flex-1 p-2 bg-surface-variant text-on-surface-variant hover:text-on-surface border border-transparent rounded-lg text-xs font-bold cursor-pointer transition-colors"
+                >
+                  Disable Login
+                </button>
+                <button 
+                  onClick={() => handleDeleteUser(u.uid)} 
+                  className="flex-1 p-2 bg-error/10 text-error border border-error/30 hover:bg-error hover:text-white rounded-lg text-xs font-bold cursor-pointer transition-colors"
+                >
+                  Terminate
+                </button>
               </div>
             </div>
           ))}

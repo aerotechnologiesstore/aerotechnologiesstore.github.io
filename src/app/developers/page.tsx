@@ -1,187 +1,153 @@
 "use client";
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import Navigation from '@/components/Navigation';
+import Footer from '@/components/Footer';
 import { subscribeToActiveAnnouncements, Announcement } from '@/lib/db';
-
-
-
+import Link from 'next/link';
 
 export default function DevelopersPage() {
   const { user, userData } = useAuth();
-  const logoSrc = '/logos/logo-main.png';
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
   useEffect(() => {
     const unsub = subscribeToActiveAnnouncements((anns) => {
-      // Developers see announcements meant for everyone or specifically developers
       setAnnouncements(anns.filter(a => a.targetAudience !== 'user'));
     });
     return () => unsub();
   }, []);
 
-  
-
-  
-
-  const preventContext = (e: React.MouseEvent) => e.preventDefault();
-
   return (
-    <>
+    <div className="min-h-screen bg-surface flex flex-col">
       <Navigation />
 
-      {/* HERO */}
-      <section className="glass-hero" onContextMenu={preventContext} style={{ paddingTop: '120px' }}>
-        <div className="hero-bg" />
-        <div className="hero-grid" />
-        <div className="neon-glow" style={{width: '600px', height: '600px', background: 'var(--c1)', top: '50%', left: '50%', transform: 'translate(-50%, -50%)'}} />
-        
-        <div className="glass-panel" style={{display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 24px', borderRadius: '100px', marginBottom: '40px'}}>
-          <div className="badge-dot" />
-          <span style={{fontWeight: 600, letterSpacing: '2px', fontSize: '12px', color: 'var(--c3)'}}>INDIA&apos;S PREMIUM DEVELOPER PLATFORM</span>
-        </div>
+      <main className="flex-1 w-full max-w-container-max-width mx-auto px-margin-desktop py-12">
+        {/* HERO */}
+        <section className="relative text-center py-20 rounded-[40px] bg-surface-container-lowest border border-outline-variant shadow-sm overflow-hidden mb-20">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl -z-10 translate-x-1/2 -translate-y-1/2" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-secondary/5 rounded-full blur-3xl -z-10 -translate-x-1/2 translate-y-1/2" />
+          
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface-container mb-6 border border-outline-variant">
+            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            <span className="font-label-lg text-xs tracking-widest text-on-surface-variant uppercase">India's Premium Developer Platform</span>
+          </div>
 
-        <h1 className="glass-hero-title">
-          Build. Distribute.<br/>
-          <span className="grad-text">Get Discovered.</span>
-        </h1>
-        
-        <p className="glass-hero-sub">
-          Aero Store is India&apos;s independent app marketplace — where verified developers publish secure apps, and users discover software they can trust. Zero bloatware. Clean installs only.
-        </p>
+          <h1 className="font-display-lg text-4xl md:text-6xl mb-6 text-on-surface leading-tight">
+            Build. Distribute.<br/>
+            <span className="text-primary">Get Discovered.</span>
+          </h1>
+          
+          <p className="font-body-lg text-on-surface-variant max-w-2xl mx-auto mb-10">
+            Aero Store is India's independent app marketplace — where verified developers publish secure apps, and users discover software they can trust. Zero bloatware. Clean installs only.
+          </p>
 
+          <div className="flex gap-4 justify-center items-center relative z-10 flex-wrap">
+            {user && (userData?.role === 'developer' || userData?.role === 'admin') ? (
+              <Link href="/dashboard" className="bg-primary text-on-primary px-8 py-4 rounded-xl font-headline-sm hover:bg-primary-container hover:text-on-primary-container transition-all shadow-md">
+                Go to Dashboard
+              </Link>
+            ) : (
+              <Link href="/register/developer" className="bg-primary text-on-primary px-8 py-4 rounded-xl font-headline-sm hover:bg-primary-container hover:text-on-primary-container transition-all shadow-md">
+                Join the Developer Program
+              </Link>
+            )}
+            <Link href="/" className="bg-surface-container text-on-surface px-8 py-4 rounded-xl font-headline-sm hover:bg-surface-variant transition-all border border-outline-variant">
+              Explore the Store
+            </Link>
+          </div>
+        </section>
+
+        {/* Announcements */}
         {announcements.length > 0 && (
-          <div style={{ maxWidth: '800px', width: '100%', margin: '0 auto 40px', position: 'relative', zIndex: 10, textAlign: 'left' }}>
-            <h3 style={{ fontSize: '14px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '16px', textAlign: 'center' }}>Platform Announcements</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <section className="mb-20 max-w-4xl mx-auto">
+            <h3 className="font-label-lg text-on-surface-variant uppercase tracking-widest mb-6 text-center">Platform Announcements</h3>
+            <div className="flex flex-col gap-4">
               {announcements.map(ann => (
-                <div key={ann.id} style={{ 
-                  padding: '24px', background: 'var(--surface2)', border: '1px solid var(--border)', 
-                  borderRadius: '16px', borderLeft: `4px solid ${ann.type === 'success' ? '#4ade80' : ann.type === 'warning' ? '#fbbf24' : '#60a5fa'}` 
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                    <div style={{ fontWeight: 700, fontSize: '14px', textTransform: 'uppercase', color: ann.type === 'success' ? '#4ade80' : ann.type === 'warning' ? '#fbbf24' : '#60a5fa' }}>
+                <div key={ann.id} className={`p-6 rounded-2xl border-l-4 ${ann.type === 'success' ? 'border-success-green bg-success-green/5' : ann.type === 'warning' ? 'border-yellow-500 bg-yellow-500/5' : 'border-secondary bg-secondary/5'}`}>
+                  <div className="flex justify-between items-center mb-2">
+                    <div className={`font-label-lg uppercase tracking-wider ${ann.type === 'success' ? 'text-success-green' : ann.type === 'warning' ? 'text-yellow-600' : 'text-secondary'}`}>
                       {ann.type === 'info' ? 'System Update' : ann.type === 'success' ? 'Good News' : 'Important Notice'}
                     </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    <div className="text-xs text-on-surface-variant font-body-sm">
                       {ann.createdAt ? new Date(ann.createdAt.toMillis ? ann.createdAt.toMillis() : ann.createdAt).toLocaleDateString() : ''}
                     </div>
                   </div>
-                  <p style={{ fontSize: '15px', color: 'var(--text-main)', margin: 0, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
-                    {ann.message.split(/(\*\*[\s\S]*?\*\*|\*[\s\S]*?\*)/g).map((part, i) => {
-                      if (part.startsWith('**') && part.endsWith('**')) return <strong key={i}>{part.slice(2, -2)}</strong>;
-                      if (part.startsWith('*') && part.endsWith('*')) return <em key={i}>{part.slice(1, -1)}</em>;
-                      return <span key={i}>{part}</span>;
-                    })}
-                  </p>
+                  {ann.mediaUrl && (
+                    <div className="mb-4 rounded-xl overflow-hidden shadow-sm border border-outline-variant bg-surface flex items-center justify-center">
+                      <img src={ann.mediaUrl} alt="Announcement Media" className="w-full max-h-[400px] object-contain" />
+                    </div>
+                  )}
+                  <p className="font-body-md text-on-surface whitespace-pre-wrap">{ann.message.replace(/[*_]/g, '')}</p>
                 </div>
               ))}
             </div>
-          </div>
+          </section>
         )}
-        
-        <div style={{display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center', position: 'relative', zIndex: 2}}>
-          {user && (userData?.role === 'developer' || userData?.role === 'admin') ? (
-            <a href="/dashboard/" className="btn-glass btn-glass-primary">Go to Dashboard ➔</a>
-          ) : (
-            <a href="/register/developer/" className="btn-glass btn-glass-primary">Join the Developer Program ➔</a>
-          )}
-          <a href="/" className="btn-glass">Explore the Store</a>
-        </div>
-      </section>
 
-      {/* FEATURES - BENTO GRID */}
-      <section style={{padding: '100px 24px', position: 'relative'}} id="platform" onContextMenu={preventContext}>
-        <div className="neon-glow" style={{width: '400px', height: '400px', background: 'var(--c2)', top: '20%', right: '0%'}} />
-        <div className="neon-glow" style={{width: '500px', height: '500px', background: 'var(--c3)', bottom: '0%', left: '-10%'}} />
-        
-        <div style={{textAlign: 'center', marginBottom: '80px', position: 'relative', zIndex: 2}}>
-          <h2 style={{fontSize: 'clamp(32px, 5vw, 48px)', fontWeight: 800, marginBottom: '16px'}}>Engineered for <span className="grad-text">Trust.</span></h2>
-          <p style={{fontSize: '18px', color: 'var(--text-muted)', maxWidth: '600px', margin: '0 auto'}}>We built Aero Store because developers deserve a fair, transparent, and secure marketplace without gatekeeping.</p>
-        </div>
+        {/* FEATURES - BENTO GRID */}
+        <section className="py-12" id="platform">
+          <div className="text-center mb-16">
+            <h2 className="font-display-lg text-3xl md:text-5xl mb-4">Engineered for <span className="text-primary">Trust.</span></h2>
+            <p className="font-body-lg text-on-surface-variant max-w-2xl mx-auto">We built Aero Store because developers deserve a fair, transparent, and secure marketplace without gatekeeping.</p>
+          </div>
 
-        <div className="bento-grid">
-          {/* Bento Item 1 - Large */}
-          <div className="glass-panel" style={{gridColumn: '1 / -1', padding: '60px', display: 'flex', flexWrap: 'wrap', gap: '40px', alignItems: 'center', justifyContent: 'space-between'}}>
-            <div style={{flex: '1 1 400px'}}>
-              <div style={{width: '60px', height: '60px', borderRadius: '16px', background: 'var(--surface2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '30px', marginBottom: '24px', border: '1px solid var(--border)'}}>🛡️</div>
-              <h3 style={{fontSize: '32px', fontWeight: 800, marginBottom: '16px'}}>Verified Developers Only</h3>
-              <p style={{fontSize: '16px', color: 'var(--text-muted)', lineHeight: 1.6}}>Every developer on our platform goes through mandatory identity and address verification. No anonymous uploads, no shady accounts. Every app is traceable to a real person or company.</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Bento Item 1 - Large */}
+            <div className="md:col-span-3 bg-surface-container-low p-10 md:p-16 rounded-[40px] flex flex-col md:flex-row gap-10 items-center border border-outline-variant">
+              <div className="flex-1">
+                <div className="w-16 h-16 rounded-2xl bg-surface-container flex items-center justify-center mb-6 text-3xl shadow-sm">🛡️</div>
+                <h3 className="font-headline-lg text-3xl mb-4 text-on-surface">Verified Developers Only</h3>
+                <p className="font-body-lg text-on-surface-variant">Every developer on our platform goes through mandatory identity and address verification. No anonymous uploads, no shady accounts. Every app is traceable to a real person or company.</p>
+              </div>
+              <div className="w-full md:w-auto bg-surface p-6 rounded-3xl border border-outline-variant shadow-md flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-success-green flex items-center justify-center text-white text-2xl font-bold">✓</div>
+                <div>
+                  <div className="font-headline-sm text-on-surface">Identity Verified</div>
+                  <div className="font-body-sm text-on-surface-variant">Aero Store Trust & Safety</div>
+                </div>
+              </div>
             </div>
-            <div style={{flex: '1 1 300px', display: 'flex', justifyContent: 'center'}}>
-               <div style={{background: 'rgba(0,0,0,0.5)', padding: '24px', borderRadius: '24px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '16px'}}>
-                 <div style={{width: '48px', height: '48px', borderRadius: '50%', background: '#4ade80', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontSize: '24px'}}>✓</div>
-                 <div>
-                   <div style={{fontWeight: 700, fontSize: '18px'}}>Identity Verified</div>
-                   <div style={{fontSize: '13px', color: 'var(--text-muted)'}}>Aero Store Trust & Safety</div>
-                 </div>
-               </div>
+
+            {/* Bento Item 2 */}
+            <div className="bg-surface-container-low p-8 rounded-[32px] border border-outline-variant">
+              <div className="w-14 h-14 rounded-xl bg-surface-container flex items-center justify-center mb-6 text-2xl shadow-sm">🔍</div>
+              <h3 className="font-headline-md mb-3 text-on-surface">Automated Scanning</h3>
+              <p className="font-body-md text-on-surface-variant">Every uploaded APK passes through multi-layer security scans. Malicious or suspicious code is flagged and blocked instantly.</p>
             </div>
-          </div>
 
-          {/* Bento Item 2 */}
-          <div className="glass-panel" style={{padding: '40px'}}>
-            <div style={{width: '50px', height: '50px', borderRadius: '12px', background: 'var(--surface2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', marginBottom: '20px', border: '1px solid var(--border)'}}>🔍</div>
-            <h3 style={{fontSize: '24px', fontWeight: 700, marginBottom: '12px'}}>Automated Scanning</h3>
-            <p style={{fontSize: '15px', color: 'var(--text-muted)', lineHeight: 1.6}}>Every uploaded APK passes through multi-layer security scans. Malicious or suspicious code is flagged and blocked instantly.</p>
-          </div>
+            {/* Bento Item 3 */}
+            <div className="bg-surface-container-low p-8 rounded-[32px] border border-outline-variant">
+              <div className="w-14 h-14 rounded-xl bg-surface-container flex items-center justify-center mb-6 text-2xl shadow-sm">⚖️</div>
+              <h3 className="font-headline-md mb-3 text-on-surface">Fair Disputes</h3>
+              <p className="font-body-md text-on-surface-variant">Every complaint is tracked transparently with timestamped audit trails — no black-box decisions or automated takedowns without review.</p>
+            </div>
 
-          {/* Bento Item 3 */}
-          <div className="glass-panel" style={{padding: '40px'}}>
-            <div style={{width: '50px', height: '50px', borderRadius: '12px', background: 'var(--surface2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', marginBottom: '20px', border: '1px solid var(--border)'}}>⚖️</div>
-            <h3 style={{fontSize: '24px', fontWeight: 700, marginBottom: '12px'}}>Fair Disputes</h3>
-            <p style={{fontSize: '15px', color: 'var(--text-muted)', lineHeight: 1.6}}>Every complaint is tracked transparently with timestamped audit trails — no black-box decisions or automated takedowns without review.</p>
-          </div>
-
-          {/* Bento Item 4 */}
-          <div className="glass-panel" style={{padding: '40px'}}>
-            <div style={{width: '50px', height: '50px', borderRadius: '12px', background: 'var(--surface2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', marginBottom: '20px', border: '1px solid var(--border)'}}>🤖</div>
-            <h3 style={{fontSize: '24px', fontWeight: 700, marginBottom: '12px'}}>AI-Powered Moderation</h3>
-            <p style={{fontSize: '15px', color: 'var(--text-muted)', lineHeight: 1.6}}>Powered by Google Gemini — our AI reviews app descriptions, scans metadata, and auto-flags policy violations before human review.</p>
-          </div>
-          
-          {/* Bento Item 5 */}
-          <div className="glass-panel" style={{gridColumn: '1 / -1', padding: '60px', display: 'flex', flexWrap: 'wrap', gap: '40px', alignItems: 'center', justifyContent: 'space-between'}}>
-            <div style={{flex: '1 1 400px'}}>
-              <h3 style={{fontSize: '32px', fontWeight: 800, marginBottom: '16px'}}>Ship Your App to <span className="grad-text">Thousands.</span></h3>
-              <p style={{fontSize: '16px', color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: '32px'}}>Aero Store is open for developer registrations. Track downloads, ratings, user feedback, and geographic distribution from one clean dashboard. Free to publish, forever.</p>
-              <div style={{display: 'flex', gap: '16px'}}>
-                {user && (userData?.role === 'developer' || userData?.role === 'admin') ? (
-                  <a href="/dashboard/" className="btn-glass btn-glass-primary">Go to Dashboard ➔</a>
-                ) : (
-                  <a href="/register/developer/" className="btn-glass btn-glass-primary">Register as Developer ➔</a>
-                )}
+            {/* Bento Item 4 */}
+            <div className="bg-surface-container-low p-8 rounded-[32px] border border-outline-variant">
+              <div className="w-14 h-14 rounded-xl bg-surface-container flex items-center justify-center mb-6 text-2xl shadow-sm">🤖</div>
+              <h3 className="font-headline-md mb-3 text-on-surface">AI-Powered Moderation</h3>
+              <p className="font-body-md text-on-surface-variant">Powered by Google Gemini — our AI reviews app descriptions, scans metadata, and auto-flags policy violations before human review.</p>
+            </div>
+            
+            {/* Bento Item 5 */}
+            <div className="md:col-span-3 bg-surface-container-highest p-10 md:p-16 rounded-[40px] flex flex-col md:flex-row gap-10 items-center justify-between border border-outline-variant mt-4">
+              <div className="max-w-xl">
+                <h3 className="font-headline-lg text-3xl mb-4 text-on-surface">Ship Your App to <span className="text-primary">Thousands.</span></h3>
+                <p className="font-body-lg text-on-surface-variant mb-8">Aero Store is open for developer registrations. Track downloads, ratings, user feedback, and geographic distribution from one clean dashboard. Free to publish, forever.</p>
+                <div className="flex gap-4">
+                  {user && (userData?.role === 'developer' || userData?.role === 'admin') ? (
+                    <Link href="/dashboard" className="bg-primary text-white px-6 py-3 rounded-xl font-label-lg hover:bg-primary-container transition-colors">Go to Dashboard</Link>
+                  ) : (
+                    <Link href="/register/developer" className="bg-primary text-white px-6 py-3 rounded-xl font-label-lg hover:bg-primary-container transition-colors">Register as Developer</Link>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </main>
 
-      {/* FOOTER */}
-      <footer onContextMenu={preventContext}>
-        <div className="footer-brand">
-          <img className="footer-logo" src={logoSrc} alt="Aero Store" draggable={false} />
-          <div>
-            <div className="footer-name">Aero Store</div>
-            {userData?.role === 'developer' || userData?.role === 'manager' || userData?.role === 'admin' ? (
-              <a href="mailto:aerotechnologies.dev@gmail.com?subject=[Dev%20Support]%20General%20Inquiry&body=Developer%20ID:%20%0D%0AIssue%20Description:%20" className="footer-email">
-                aerotechnologies.dev@gmail.com
-              </a>
-            ) : (
-              <a href="mailto:aerotechnologies.store@gmail.com?subject=[User%20Support]%20General%20Inquiry&body=Issue%20Description:%20" className="footer-email">
-                aerotechnologies.store@gmail.com
-              </a>
-            )}
-          </div>
-        </div>
-        <div className="footer-links">
-          <a href="/privacy/">Privacy Policy</a>
-          <a href="/terms/">Terms of Use</a>
-          <a href="/support/">Support & Ticketing</a>
-          <a href="/developers/">Developers</a>
-        </div>
-        <div className="footer-copy">© 2026 Aero Store. All rights reserved. 🇮🇳 Made in India.</div>
-      </footer>
-    </>
+      <Footer />
+    </div>
   );
 }

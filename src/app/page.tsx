@@ -1,24 +1,36 @@
 "use client";
-import React, { useEffect, useState, useRef } from 'react';
-import { subscribeToPublishedApps, subscribeToActiveAnnouncements, AppListing, Announcement } from '@/lib/db';
+import React, { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { subscribeToPublishedApps, subscribeToActiveAnnouncements, AppListing, Announcement, processScheduledApps } from '@/lib/db';
 import Navigation from '@/components/Navigation';
+import Footer from '@/components/Footer';
 
-export default function StorefrontPage() {
+function StorefrontContent() {
   const [apps, setApps] = useState<AppListing[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [expandedAnn, setExpandedAnn] = useState<Announcement | null>(null);
-
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [currentFeaturedIndex, setCurrentFeaturedIndex] = useState(0);
+  
+  const searchParams = useSearchParams();
+  const search = searchParams?.get('q') || "";
 
   useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentFeaturedIndex((prev) => prev + 1);
+    }, 5000); // Rotate every 5 seconds
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    // Decentralized Cron Job: Silently process any apps that are scheduled to go live
+    processScheduledApps().catch(console.error);
+
     const unsubApps = subscribeToPublishedApps((publishedApps) => {
       setApps(publishedApps);
       setLoading(false);
     });
     
     const unsubAnns = subscribeToActiveAnnouncements((anns) => {
-      // Show announcements meant for all or user, hide developer only
       setAnnouncements(anns.filter(a => a.targetAudience !== 'developer'));
     });
 
@@ -33,349 +45,286 @@ export default function StorefrontPage() {
     (a.category && a.category.toLowerCase().includes(search.toLowerCase()))
   );
 
-  // Groups and metrics
   const topDownloads = [...apps].sort((a, b) => b.downloads - a.downloads);
   const newReleases = [...apps].sort((a, b) => b.createdAt - a.createdAt);
-  
+  const playables = apps.filter(a => a.isPlayable);
   const categories = Array.from(new Set(apps.map(a => a.category))).filter(Boolean);
-  
-  // Carousel logic
-  const [carouselIdx, setCarouselIdx] = useState(0);
-  const carouselApps = topDownloads.slice(0, 3);
-  
-  useEffect(() => {
-    if (carouselApps.length > 1) {
-      const timer = setInterval(() => {
-        setCarouselIdx(prev => (prev + 1) % carouselApps.length);
-      }, 5000);
-      return () => clearInterval(timer);
-    }
-  }, [carouselApps.length]);
+
+  const featuredApps = newReleases.slice(0, 5);
+  const featuredApp = featuredApps[currentFeaturedIndex % (featuredApps.length || 1)];
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg2)' }}>
+    <>
       <Navigation />
-      
-      {/* ODOO STYLE HERO SEARCH */}
-      <section style={{ padding: '100px 24px 160px', position: 'relative', background: 'var(--bg)' }}>
-        <div style={{ position: 'relative', zIndex: 1, maxWidth: '900px', margin: '0 auto', textAlign: 'center', width: '100%' }}>
-          <h1 style={{ fontSize: 'clamp(44px, 7vw, 76px)', marginBottom: '32px', fontWeight: 800, lineHeight: 1.1, color: 'var(--text-main)', letterSpacing: '-1px' }}>
-            The best apps.<br/>
-            <span style={{ position: 'relative', display: 'inline-block' }}>
-              <span className="font-handwriting" style={{ position: 'relative', zIndex: 1, color: 'var(--text-main)', fontSize: '1.2em' }}>
-                Verified & Secure!
-                <svg style={{ position: 'absolute', bottom: '-4px', left: '0', width: '100%', height: '12px', zIndex: -1 }} viewBox="0 0 100 10" preserveAspectRatio="none">
-                  <path d="M0,5 Q50,15 100,2" stroke="var(--c1)" strokeWidth="4" fill="none" strokeLinecap="round" />
-                </svg>
-              </span>
-            </span>
-          </h1>
-          
-          <div className="glass-panel" style={{ display: 'flex', alignItems: 'center', maxWidth: '600px', margin: '40px auto 32px', padding: '8px 12px', borderRadius: '100px', background: 'var(--surface)', boxShadow: '0 8px 24px rgba(0,0,0,0.06)' }}>
-            <div style={{ padding: '0 16px', color: 'var(--text-muted)', fontSize: '20px' }}>🔍</div>
-            <input aria-label="Search Apps" 
-              type="text" 
-              placeholder="What are you looking for?" 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{ 
-                flex: 1, background: 'transparent', border: 'none', 
-                color: 'var(--text-main)', fontSize: '18px', outline: 'none', padding: '12px 0'
-              }}
-            />
-          </div>
-          
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            {categories.slice(0, 5).map(cat => (
-              <button key={cat} onClick={() => setSearch(cat)} className="btn-glass" style={{ padding: '8px 20px', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--surface)' }}>
-                {cat} <span>➔</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Curved Divider to match Odoo */}
-        <div className="odoo-divider">
-          <svg viewBox="0 0 1200 120" preserveAspectRatio="none">
-            <path d="M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V120H0Z" className="shape-fill"></path>
-          </svg>
-        </div>
-      </section>
-
-      {/* ANNOUNCEMENT CARDS */}
-      {announcements.length > 0 && !search && (
-        <div style={{ maxWidth: '1000px', margin: '-40px auto 40px', position: 'relative', zIndex: 10 }}>
-          {announcements.length > 1 && (
-            <div style={{ textAlign: 'right', paddingRight: '32px', marginBottom: '8px', fontSize: '12px', color: 'var(--text-muted)', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '6px' }}>
-              <span>Scroll for more announcements</span>
-              <span style={{ fontSize: '16px', animation: 'bounceX 2s infinite' }}>➔</span>
-            </div>
-          )}
-          <section className="hide-scrollbar" style={{ display: 'flex', overflowX: 'auto', gap: '20px', padding: '0 24px 20px', scrollSnapType: 'x mandatory', alignItems: 'flex-start' }}>
-            {announcements.map((ann, idx) => {
-              const isSuccess = ann.type === 'success';
-              const isWarning = ann.type === 'warning';
-              const icon = isSuccess ? '✨' : isWarning ? '⚡' : '🚀';
-              const titleColor = isSuccess ? '#4ade80' : isWarning ? '#fbbf24' : '#60a5fa';
-              const bgGlow = isSuccess ? 'rgba(74, 222, 128, 0.1)' : isWarning ? 'rgba(251, 191, 36, 0.1)' : 'rgba(96, 165, 250, 0.1)';
-              const borderGlow = isSuccess ? 'rgba(74, 222, 128, 0.3)' : isWarning ? 'rgba(251, 191, 36, 0.3)' : 'rgba(96, 165, 250, 0.3)';
-
-              return (
-                <div key={ann.id || idx} className="announcement-card" style={{ 
-                  flex: '0 0 auto',
-                  width: announcements.length > 1 ? 'min(85%, 450px)' : '100%',
-                  maxWidth: '600px',
-                  height: '420px',
-                  scrollSnapAlign: 'center',
-                  background: `linear-gradient(145deg, var(--surface), var(--surface2))`, 
-                  border: `1px solid ${borderGlow}`, 
-                  borderRadius: '20px', 
-                  overflow: 'hidden',
-                  boxShadow: `0 16px 32px rgba(0,0,0,0.4), 0 0 30px ${bgGlow}`,
-                  position: 'relative',
-                  display: 'flex',
-                  flexDirection: 'column'
-                }}>
-                  <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: titleColor }} />
-                  
-                  {ann.mediaUrl && ann.mediaType === 'image' && (
-                    <img className="announcement-img" src={ann.mediaUrl} alt="Announcement" style={{ width: '100%', height: '180px', objectFit: 'cover', backgroundColor: 'rgba(0,0,0,0.3)', flexShrink: 0 }} />
-                  )}
-                  {ann.mediaUrl && ann.mediaType === 'video' && (
-                    <video src={ann.mediaUrl} autoPlay loop muted controls style={{ width: '100%', height: '180px', objectFit: 'cover', backgroundColor: 'rgba(0,0,0,0.3)', display: 'block', flexShrink: 0 }} />
-                  )}
-                  <div style={{ padding: '20px 24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                      <div style={{ 
-                        width: '36px', height: '36px', borderRadius: '10px', 
-                        background: bgGlow, border: `1px solid ${borderGlow}`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '18px'
-                      }}>
-                        {icon}
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 800, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '1px', color: titleColor }}>
-                          {ann.type === 'info' ? 'System Update' : ann.type === 'success' ? 'Good News' : 'Important Notice'}
-                        </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                          {ann.createdAt ? new Date(ann.createdAt.toMillis ? ann.createdAt.toMillis() : ann.createdAt).toLocaleDateString() : 'Just now'}
-                          {ann.updatedAt && (
-                            <span style={{ fontStyle: 'italic', marginLeft: '6px', color: 'var(--text-muted)' }}>
-                              (Edited: {new Date(ann.updatedAt.toMillis ? ann.updatedAt.toMillis() : ann.updatedAt).toLocaleString()})
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <p className="announcement-txt" style={{ 
-                      fontSize: '15px', lineHeight: 1.5, color: 'var(--text-main)', 
-                      margin: 0, whiteSpace: 'pre-wrap', fontWeight: 400,
-                      overflow: 'hidden', textOverflow: 'ellipsis',
-                      display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical'
-                    }}>
-                      {ann.message.split(/(\*\*[\s\S]*?\*\*|\*[\s\S]*?\*)/g).map((part, i) => {
-                        if (part.startsWith('**') && part.endsWith('**')) {
-                          return <strong key={i} style={{ color: 'var(--text-main)' }}>{part.slice(2, -2)}</strong>;
-                        }
-                        if (part.startsWith('*') && part.endsWith('*')) {
-                          return <em key={i} style={{ color: 'var(--text-main)' }}>{part.slice(1, -1)}</em>;
-                        }
-                        return <span key={i}>{part}</span>;
-                      })}
-                    </p>
-                    <button 
-                      onClick={() => setExpandedAnn(ann)}
-                      style={{ marginTop: 'auto', background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text-main)', padding: '8px 16px', borderRadius: '100px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '6px', transition: 'background 0.2s' }}
-                      onMouseOver={(e) => e.currentTarget.style.background = 'var(--surface)'}
-                      onMouseOut={(e) => e.currentTarget.style.background = 'var(--surface2)'}
-                    >
-                      Read More <span style={{ fontSize: '14px' }}>➔</span>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </section>
-          <style>{`
-            @keyframes bounceX {
-              0%, 100% { transform: translateX(0); }
-              50% { transform: translateX(6px); }
-            }
-          `}</style>
-          
-          {/* FULL SCREEN ANNOUNCEMENT MODAL */}
-          {expandedAnn && (
-            <div style={{ 
-              position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', 
-              background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', zIndex: 99999,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
-            }}>
-              <div style={{ 
-                background: 'var(--surface)', border: '1px solid var(--border)', 
-                borderRadius: '24px', width: '100%', maxWidth: '800px', maxHeight: '90vh',
-                overflowY: 'auto', position: 'relative', display: 'flex', flexDirection: 'column'
-              }}>
-                <button 
-                  onClick={() => setExpandedAnn(null)}
-                  style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(255,255,255,0.1)', border: 'none', width: '40px', height: '40px', borderRadius: '20px', color: '#fff', fontSize: '20px', cursor: 'pointer', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                  ×
-                </button>
-                {expandedAnn.mediaUrl && expandedAnn.mediaType === 'image' && (
-                  <img src={expandedAnn.mediaUrl} alt="Announcement" style={{ width: '100%', height: '250px', objectFit: 'cover', backgroundColor: '#000' }} />
-                )}
-                {expandedAnn.mediaUrl && expandedAnn.mediaType === 'video' && (
-                  <video src={expandedAnn.mediaUrl} autoPlay loop controls style={{ width: '100%', height: '250px', objectFit: 'cover', backgroundColor: '#000' }} />
-                )}
-                <div style={{ padding: '32px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                  <div style={{ fontWeight: 800, fontSize: '18px', textTransform: 'uppercase', letterSpacing: '1px', color: expandedAnn.type === 'success' ? '#4ade80' : expandedAnn.type === 'warning' ? '#fbbf24' : '#60a5fa', marginBottom: '16px' }}>
-                    {expandedAnn.type === 'info' ? 'System Update' : expandedAnn.type === 'success' ? 'Good News' : 'Important Notice'}
-                  </div>
-                  <p style={{ fontSize: '16px', lineHeight: 1.6, color: 'rgba(255,255,255,0.9)', margin: 0, whiteSpace: 'pre-wrap' }}>
-                    {expandedAnn.message.split(/(\*\*[\s\S]*?\*\*|\*[\s\S]*?\*)/g).map((part, i) => {
-                      if (part.startsWith('**') && part.endsWith('**')) return <strong key={i} style={{ color: '#fff' }}>{part.slice(2, -2)}</strong>;
-                      if (part.startsWith('*') && part.endsWith('*')) return <em key={i} style={{ color: '#fff' }}>{part.slice(1, -1)}</em>;
-                      return <span key={i}>{part}</span>;
-                    })}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '40px 24px 80px' }}>
+      <main className="w-full max-w-container-max-width mx-auto px-4 sm:px-margin-desktop py-4 sm:py-8 space-y-8 sm:space-y-12">
         
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-muted)' }}>
-            <div style={{ fontSize: '32px', marginBottom: '16px', animation: 'pulse 1.5s infinite' }}>⏳</div>
-            Loading Storefront...
+          <div className="text-center py-20 text-on-surface-variant">
+            <span className="material-symbols-outlined text-4xl animate-spin mb-4" style={{ fontVariationSettings: "'FILL' 1" }}>sync</span>
+            <p className="font-body-lg">Loading Aero Store...</p>
           </div>
         ) : search ? (
-          /* SEARCH RESULTS VIEW */
+          /* Search Results */
           <div>
-            <h2 style={{ fontSize: '24px', fontWeight: 700, marginBottom: '24px', color: 'var(--text-main)' }}>Search Results</h2>
+            <h2 className="font-headline-lg text-headline-lg text-on-surface mb-6">Search Results for "{search}"</h2>
             {filteredApps.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '60px 0', background: 'var(--surface)', borderRadius: '24px', border: '1px solid var(--border)' }}>
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏜️</div>
-                <h3 style={{ fontSize: '24px', marginBottom: '8px' }}>No Apps Found</h3>
-                <p style={{ color: 'var(--text-muted)' }}>We couldn't find any apps matching your search.</p>
+              <div className="text-center py-20 bg-surface-container-low rounded-3xl border border-outline-variant">
+                <span className="material-symbols-outlined text-5xl mb-4 text-on-surface-variant">search_off</span>
+                <h3 className="font-headline-md mb-2">No Apps Found</h3>
+                <p className="text-on-surface-variant font-body-sm">Try adjusting your search terms.</p>
               </div>
             ) : (
-              <div className="admin-grid-responsive" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '24px' }}>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-card-gap">
                 {filteredApps.map(app => <AppCard key={app.id} app={app} />)}
               </div>
             )}
           </div>
         ) : (
-          /* DEFAULT UPTODOWN-STYLE VIEW */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '48px' }}>
-            
-            {/* FEATURED CAROUSEL */}
-            {carouselApps.length > 0 && (
-              <section className="glass-panel" style={{ position: 'relative', height: '400px', borderRadius: '32px', overflow: 'hidden', padding: 0 }}>
-                {carouselApps.map((app, idx) => (
-                  <div key={app.id} style={{ 
-                    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                    opacity: carouselIdx === idx ? 1 : 0,
-                    transition: 'opacity 0.8s ease-in-out',
-                    pointerEvents: carouselIdx === idx ? 'auto' : 'none'
-                  }}>
-                    {/* Blurred Background */}
-                    <div style={{
-                      position: 'absolute', top: '-10%', left: '-10%', right: '-10%', bottom: '-10%',
-                      backgroundImage: `url(${app.iconUrl})`,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                      filter: 'blur(60px) brightness(0.3)',
-                      zIndex: 0
-                    }} />
-                    {/* Content */}
-                    <div className="featured-content" style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', height: '100%', padding: '40px 80px', gap: '48px' }}>
-                      <img className="featured-img" src={app.iconUrl} alt={app.appName} style={{ width: '240px', height: '240px', borderRadius: '48px', boxShadow: '0 24px 48px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.1)' }} />
-                      <div>
-                        <div style={{ display: 'inline-block', padding: '6px 12px', background: 'rgba(255,255,255,0.1)', borderRadius: '100px', fontSize: '12px', fontWeight: 700, marginBottom: '16px', color: '#fff', textTransform: 'uppercase', letterSpacing: '1px', backdropFilter: 'blur(10px)' }}>
-                          Featured App
+          /* Default Storefront */
+          <>
+            {/* Announcements */}
+            {announcements.length > 0 && (
+              <section className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar carousel-container">
+                {announcements.map(ann => (
+                  <div key={ann.id} className={`min-w-[260px] sm:min-w-[300px] max-w-[400px] flex-shrink-0 rounded-2xl p-3 sm:p-4 border flex items-start gap-3 shadow-sm ${ann.type === 'success' ? 'bg-success-green/10 border-success-green/20' : ann.type === 'warning' ? 'bg-yellow-500/10 border-yellow-500/20' : 'bg-secondary-container/20 border-secondary-container/30'}`}>
+                    <span className="material-symbols-outlined mt-1" style={{ color: ann.type === 'success' ? 'var(--success-green)' : ann.type === 'warning' ? '#eab308' : 'var(--secondary)' }}>
+                      {ann.type === 'success' ? 'check_circle' : ann.type === 'warning' ? 'warning' : 'info'}
+                    </span>
+                    <div>
+                      <h4 className="font-label-lg font-bold mb-1">{ann.type === 'info' ? 'System Update' : ann.type === 'success' ? 'Good News' : 'Important Notice'}</h4>
+                      {ann.mediaUrl && (
+                        <div className="mb-3 rounded-xl overflow-hidden shadow-sm border border-outline-variant">
+                          <img src={ann.mediaUrl} alt="Announcement" className="w-full max-h-48 object-cover" />
                         </div>
-                        <h2 className="featured-title" style={{ fontSize: '48px', fontWeight: 800, marginBottom: '16px', color: '#fff', lineHeight: 1.1 }}>{app.appName}</h2>
-                        <p className="featured-desc" style={{ fontSize: '18px', color: 'rgba(255,255,255,0.7)', maxWidth: '400px', marginBottom: '32px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{app.description}</p>
-                        <a className="btn-glass btn-glass-primary" href={`/app?id=${app.id}`}>
-                          View Details ➔
-                        </a>
-                      </div>
+                      )}
+                      <p className="text-xs text-on-surface-variant line-clamp-2">{ann.message.replace(/[*_]/g, '')}</p>
                     </div>
                   </div>
                 ))}
+              </section>
+            )}
+
+            {/* Hero Section */}
+            {featuredApp && (
+              <section className="relative w-full h-[280px] sm:h-[360px] md:h-[480px] rounded-2xl sm:rounded-3xl overflow-hidden shadow-xl group">
+                <div className="absolute inset-0 bg-gradient-to-r from-deep-slate/90 via-deep-slate/60 to-deep-slate/30 sm:from-deep-slate/80 sm:via-deep-slate/40 sm:to-transparent z-10"></div>
+                <div key={featuredApp.id} className="absolute inset-0 bg-cover bg-center transition-transform duration-700 animate-in fade-in group-hover:scale-105" style={{ backgroundImage: `url(${featuredApp.iconUrl})`, filter: 'blur(10px) brightness(0.6)' }}></div>
                 
-                {/* Carousel Indicators */}
-                <div style={{ position: 'absolute', bottom: '24px', left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: '12px', zIndex: 2 }}>
-                  {carouselApps.map((_, idx) => (
-                    <button key={idx} onClick={() => setCarouselIdx(idx)} style={{ width: '12px', height: '12px', borderRadius: '50%', background: carouselIdx === idx ? '#fff' : 'rgba(255,255,255,0.3)', border: 'none', cursor: 'pointer', padding: 0 }} />
+                <div className="relative z-20 h-full flex flex-col justify-center px-5 sm:px-8 md:px-12 max-w-2xl text-white">
+                  <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-primary px-2.5 sm:px-3 py-1 rounded-full mb-3 sm:mb-6 w-fit">
+                    <span className="material-symbols-outlined text-xs sm:text-sm">stars</span>
+                    <span className="font-label-lg text-[10px] sm:text-xs tracking-wider">NEW RELEASE</span>
+                  </div>
+                  <h1 key={`title-${featuredApp.id}`} className="text-2xl sm:text-4xl md:text-display-lg font-bold mb-2 sm:mb-4 leading-tight text-white animate-in slide-in-from-bottom-4 fade-in">{featuredApp.appName}</h1>
+                  <p key={`desc-${featuredApp.id}`} className="text-sm sm:text-base md:text-body-lg text-surface-variant mb-4 sm:mb-8 opacity-90 line-clamp-2 sm:line-clamp-3 animate-in slide-in-from-bottom-6 fade-in">{featuredApp.description}</p>
+                  
+                  <div className="flex items-center gap-4">
+                    <a href={`/app?id=${featuredApp.id}`} className="bg-primary-container hover:bg-primary transition-all text-on-primary-container px-5 sm:px-8 py-2.5 sm:py-4 rounded-xl text-sm sm:text-base font-bold flex items-center gap-2 group/btn animate-in slide-in-from-bottom-8 fade-in">
+                      Get {featuredApp.appName}
+                      <span className="material-symbols-outlined group-hover/btn:translate-x-1 transition-transform text-sm sm:text-base">arrow_forward</span>
+                    </a>
+                  </div>
+                </div>
+
+                <div className="absolute bottom-12 right-12 z-20 hidden lg:block">
+                  <div key={`img-${featuredApp.id}`} className="w-48 h-48 relative animate-in zoom-in fade-in">
+                    <img src={featuredApp.iconUrl} className="w-full h-full object-cover rounded-[32px] shadow-2xl drop-shadow-[0_0_30px_rgba(255,87,34,0.3)]" alt={featuredApp.appName} />
+                  </div>
+                </div>
+
+                <div className="absolute bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-1.5 sm:gap-2">
+                  {featuredApps.map((app, idx) => (
+                    <div key={`dot-${app.id}`} className={`h-1.5 sm:h-2 rounded-full transition-all duration-500 ${idx === currentFeaturedIndex % featuredApps.length ? 'w-6 sm:w-8 bg-primary' : 'w-1.5 sm:w-2 bg-white/30'}`}></div>
                   ))}
                 </div>
               </section>
             )}
 
-            {/* HORIZONTAL ROWS */}
-            
-            <HorizontalRow title="Top Downloads" apps={topDownloads.slice(0, 10)} isRanking />
-            
-            <HorizontalRow title="New Releases" apps={newReleases.slice(0, 10)} />
-            
-            {categories.map(cat => (
-              <HorizontalRow key={cat} title={`${cat} Apps`} apps={apps.filter(a => a.category === cat)} />
-            ))}
+            {/* Category Pills */}
+            <section className="flex gap-3 overflow-x-auto pb-2 hide-scrollbar">
+              <a href="/" className={`px-5 py-2 rounded-full font-label-lg whitespace-nowrap ${!search ? 'bg-primary text-white' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-variant'}`}>For You</a>
+              {categories.map(cat => (
+                <a key={cat} href={`/?q=${cat}`} className="bg-surface-container-low text-on-surface-variant hover:bg-surface-variant px-5 py-2 rounded-full font-label-lg transition-colors whitespace-nowrap">
+                  {cat}
+                </a>
+              ))}
+            </section>
 
-          </div>
+            {/* Playables Carousel */}
+            {playables.length > 0 && (
+              <section>
+                <div className="flex justify-between items-end mb-4 sm:mb-6">
+                  <div>
+                    <h2 className="text-xl sm:text-2xl md:text-headline-lg font-bold text-on-surface">YouTube Playables</h2>
+                    <p className="text-on-surface-variant text-xs sm:text-sm">Instant games, no downloads</p>
+                  </div>
+                </div>
+                <div className="flex gap-4 sm:gap-card-gap overflow-x-auto pb-4 sm:pb-6 hide-scrollbar carousel-container">
+                  {playables.map((app) => (
+                    <a key={app.id} href={`/play?id=${app.id}`} className="w-[42vw] max-w-[200px] sm:w-[180px] md:w-[200px] flex-shrink-0 group cursor-pointer card-lift transition-all duration-300 relative rounded-[24px] overflow-hidden border border-outline-variant hover:border-primary">
+                      <div className="aspect-[3/4] bg-surface-container relative">
+                        <img src={app.iconUrl} alt={app.appName} className="w-full h-full object-cover" />
+                        {/* Gradient Overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                        
+                        {/* Play Button Area */}
+                        <div className="absolute bottom-0 left-0 right-0 p-4">
+                          <h3 className="font-bold text-white text-sm truncate mb-2 drop-shadow-md">{app.appName}</h3>
+                          <div className="w-full bg-white/90 text-black py-2.5 rounded-full font-bold text-sm text-center flex items-center justify-center gap-1 group-hover:bg-primary group-hover:text-white transition-colors">
+                            <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>play_arrow</span>
+                            Play
+                          </div>
+                        </div>
+                      </div>
+                    </a>
+                  ))}
+                  {/* Peek Card */}
+                  <div className="min-w-[140px] sm:min-w-[200px] flex-shrink-0 opacity-40">
+                    <div className="aspect-[3/4] bg-surface-container rounded-2xl sm:rounded-3xl border border-outline-variant border-dashed"></div>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* Top Downloads Carousel */}
+            {topDownloads.length > 0 && (
+              <section>
+                <div className="flex justify-between items-end mb-4 sm:mb-6">
+                  <div>
+                    <h2 className="text-xl sm:text-2xl md:text-headline-lg font-bold text-on-surface">Top Downloads</h2>
+                    <p className="text-on-surface-variant text-xs sm:text-sm">The most popular picks from the community this week.</p>
+                  </div>
+                </div>
+                <div className="flex gap-4 sm:gap-card-gap overflow-x-auto pb-4 sm:pb-6 hide-scrollbar carousel-container">
+                  {topDownloads.map((app, idx) => (
+                    <AppCard key={app.id} app={app} rank={idx + 1} isLarge />
+                  ))}
+                  {/* Peek Card */}
+                  <div className="min-w-[140px] sm:min-w-[200px] flex-shrink-0 opacity-40">
+                    <div className="aspect-square bg-surface-container rounded-2xl sm:rounded-3xl"></div>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* New Releases Grid */}
+            {newReleases.length > 0 && (
+              <section>
+                <div className="flex justify-between items-end mb-4 sm:mb-8">
+                  <div>
+                    <h2 className="text-xl sm:text-2xl md:text-headline-lg font-bold text-on-surface">New Releases</h2>
+                    <p className="text-on-surface-variant text-xs sm:text-sm">Fresh arrivals just landed in the Aero Store ecosystem.</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-gutter">
+                  {/* Highlight Card for the newest app */}
+                  {newReleases[0] && (
+                    <a href={`/app?id=${newReleases[0].id}`} className="md:col-span-2 md:row-span-2 bg-surface-container-low rounded-2xl sm:rounded-[32px] p-5 sm:p-8 flex flex-col justify-between border border-outline-variant hover:border-primary transition-all group overflow-hidden relative">
+                      <div className="relative z-10">
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-surface rounded-xl sm:rounded-2xl mb-4 sm:mb-6 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform p-1 overflow-hidden">
+                          <img src={newReleases[0].iconUrl} alt={newReleases[0].appName} className="w-full h-full object-cover rounded-lg sm:rounded-xl" />
+                        </div>
+                        <h3 className="text-xl sm:text-2xl md:text-headline-lg font-bold mb-2">{newReleases[0].appName}</h3>
+                        <p className="text-on-surface-variant text-sm sm:text-base max-w-sm mb-4 sm:mb-6 line-clamp-3">{newReleases[0].description}</p>
+                        <div className="flex items-center gap-3">
+                          <span className="bg-primary text-white text-xs px-3 py-1 rounded-full font-bold">NEW</span>
+                          <span className="text-on-surface-variant text-xs sm:text-sm">{newReleases[0].category || 'App'} • {newReleases[0].rating ? newReleases[0].rating.toFixed(1) + ' ★' : 'New'}</span>
+                        </div>
+                      </div>
+                      <button className="mt-5 sm:mt-8 bg-surface text-primary border border-primary px-6 sm:px-6 py-2.5 rounded-xl text-sm font-bold self-start group-hover:bg-primary group-hover:text-white transition-all">Download Now</button>
+                    </a>
+                  )}
+
+                  {/* Secondary Cards for the rest */}
+                  {newReleases.slice(1, 5).map(app => (
+                    <a key={app.id} href={`/app?id=${app.id}`} className="bg-surface-container-lowest rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-outline-variant hover:shadow-lg transition-all flex gap-3 sm:gap-4">
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-surface-container rounded-lg sm:rounded-xl flex-shrink-0 flex items-center justify-center p-0.5 sm:p-1 overflow-hidden">
+                        <img src={app.iconUrl} alt={app.appName} className="w-full h-full object-cover rounded-md sm:rounded-lg" />
+                      </div>
+                      <div className="overflow-hidden">
+                        <h4 className="font-bold text-sm sm:text-base truncate">{app.appName}</h4>
+                        <p className="text-xs text-on-surface-variant mb-1 truncate">{app.category || 'App'}</p>
+                        <div className="flex items-center text-xs font-bold text-aero-orange-vibrant">{app.rating ? app.rating.toFixed(1) + ' ★' : 'New'}</div>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </section>
+            )}
+
+
+          </>
         )}
       </main>
-    </div>
-  );
-}
 
-function HorizontalRow({ title, apps, isRanking = false }: { title: string, apps: AppListing[], isRanking?: boolean }) {
-  if (apps.length === 0) return null;
-  return (
-    <section>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h3 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {title} <span style={{ color: 'var(--c1)', fontSize: '18px' }}>➔</span>
-        </h3>
-      </div>
-      <div className="hide-scrollbar" style={{ display: 'flex', gap: '20px', overflowX: 'auto', paddingBottom: '24px', scrollSnapType: 'x mandatory' }}>
-        {apps.map((app, idx) => (
-          <AppCard key={app.id} app={app} rank={isRanking ? idx + 1 : undefined} />
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function AppCard({ app, rank }: { app: AppListing, rank?: number }) {
-  return (
-    <a href={`/app?id=${app.id}`} style={{ display: 'block', textDecoration: 'none', minWidth: '140px', maxWidth: '140px', flex: '0 0 auto', position: 'relative', scrollSnapAlign: 'start', transition: 'transform 0.3s' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
-      <div style={{ position: 'relative', width: '140px', height: '140px', marginBottom: '16px' }}>
-        {rank !== undefined && (
-          <div style={{ position: 'absolute', left: '-20px', bottom: '-20px', fontSize: '120px', fontWeight: 900, color: 'var(--border)', zIndex: 0, lineHeight: 0.8, userSelect: 'none', textShadow: '0 4px 24px rgba(0,0,0,0.05)' }}>
-            {rank}
-          </div>
-        )}
-        <div style={{ width: '100%', height: '100%', borderRadius: '32px', background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', zIndex: 1, boxShadow: '0 10px 20px rgba(0,0,0,0.06)' }}>
-          <img 
-            src={app.iconUrl} 
-            alt={app.appName} 
-            style={{ width: '70%', height: '70%', borderRadius: '16px', objectFit: 'cover' }}
-          />
+      {/* SEO & AdSense Text Block */}
+      <section className="max-w-container-max-width mx-auto px-6 py-12 mt-12 border-t border-outline-variant/30">
+        <h2 className="text-2xl font-bold text-on-surface mb-4">Welcome to Aero Store: The Next Generation App Marketplace</h2>
+        <div className="text-on-surface-variant font-body-lg leading-relaxed space-y-4">
+          <p>
+            Aero Store is a decentralized, highly secure application marketplace designed to empower independent developers and protect users. 
+            In a digital ecosystem dominated by walled gardens and excessive fees, we provide an open platform where innovation thrives without borders. 
+            Our platform hosts a wide variety of Android applications, ranging from productivity tools and educational software to offline gaming experiences like Ludo and Tic Tac Toe.
+          </p>
+          <p>
+            Every single application submitted to Aero Store undergoes a rigorous, multi-layered security analysis before it reaches our public catalog. 
+            We utilize advanced Artificial Intelligence to scan app metadata for policy compliance, and we route all installation binaries through VirusTotal's 
+            comprehensive array of anti-malware engines. This military-grade security pipeline ensures that our users can download and explore new software 
+            with absolute peace of mind.
+          </p>
+          <p>
+            For developers, Aero Store offers unprecedented freedom. Enjoy unlimited APK storage powered by Archive.org's decentralized infrastructure, 
+            alongside lightning-fast media delivery via Supabase. We enforce strict intellectual property rights through our comprehensive DMCA policy, 
+            ensuring a fair, clean, and highly professional environment for creators to distribute their hard work to a global audience.
+          </p>
         </div>
+      </section>
+
+      <Footer />
+    </>
+  );
+}
+
+function AppCard({ app, rank, isLarge = false }: { app: AppListing, rank?: number, isLarge?: boolean }) {
+  if (isLarge) {
+    return (
+      <a href={`/app?id=${app.id}`} className="w-[42vw] max-w-[200px] sm:w-[180px] md:w-[200px] flex-shrink-0 group cursor-pointer card-lift transition-all duration-300">
+        <div className="aspect-square bg-surface-container rounded-2xl sm:rounded-3xl overflow-hidden mb-2 sm:mb-3 relative p-0.5 sm:p-1 shadow-inner">
+          <img src={app.iconUrl} alt={app.appName} className="w-full h-full object-cover rounded-[14px] sm:rounded-[20px]" />
+        </div>
+        <h3 className="font-bold text-sm sm:text-base truncate mb-0.5 sm:mb-1">{app.appName}</h3>
+        <div className="flex items-center gap-1 mb-0.5 sm:mb-1">
+          <span className="material-symbols-outlined text-aero-orange-vibrant text-xs sm:text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+          <span className="text-[10px] sm:text-xs font-bold">{app.rating ? app.rating.toFixed(1) : 'New'}</span>
+          <span className="text-on-surface-variant text-[9px] sm:text-[10px]">• {app.downloads} Downloads</span>
+        </div>
+        <p className="text-on-surface-variant text-xs truncate">{app.category || 'App'}</p>
+      </a>
+    );
+  }
+
+  // Small standard card for search results
+  return (
+    <a href={`/app?id=${app.id}`} className="flex flex-col group cursor-pointer hover:-translate-y-1 transition-transform">
+      <div className="aspect-square bg-surface-container rounded-2xl overflow-hidden mb-3 relative p-1">
+        <img src={app.iconUrl} alt={app.appName} className="w-full h-full object-cover rounded-[12px] shadow-sm" />
       </div>
-      <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: '4px', letterSpacing: '0.3px' }}>
-        {app.appName}
-      </div>
-      <div style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {app.category} • ⭐ {app.rating ? app.rating.toFixed(1) : 'New'}
+      <h3 className="font-label-lg truncate">{app.appName}</h3>
+      <p className="text-xs text-on-surface-variant truncate mb-1">{app.category}</p>
+      <div className="flex items-center gap-1">
+        <span className="material-symbols-outlined text-aero-orange-vibrant text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+        <span className="text-[12px] font-bold">{app.rating ? app.rating.toFixed(1) : 'New'}</span>
       </div>
     </a>
+  );
+}
+
+export default function StorefrontPage() {
+  return (
+    <div className="min-h-screen bg-surface">
+      <Suspense fallback={<div className="h-screen flex items-center justify-center text-primary"><span className="material-symbols-outlined animate-spin text-4xl">sync</span></div>}>
+        <StorefrontContent />
+      </Suspense>
+    </div>
   );
 }

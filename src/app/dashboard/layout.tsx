@@ -6,22 +6,14 @@ import DashboardNav from '@/components/DashboardNav';
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthGuard requireRole="developer">
-      <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
+      <div className="flex flex-col md:flex-row min-h-screen bg-surface text-on-surface">
         <DashboardNav />
-        <main className="dash-main" style={{ flex: 1, padding: '40px', overflowY: 'auto' }}>
-          <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+        <main className="flex-1 p-6 md:p-12 overflow-y-auto">
+          <div className="max-w-5xl mx-auto w-full">
             {children}
           </div>
         </main>
       </div>
-      <style>{`
-        @media (max-width: 768px) {
-          .dash-main {
-            padding: 16px !important;
-            padding-top: 72px !important;
-          }
-        }
-      `}</style>
     </AuthGuard>
   );
 }

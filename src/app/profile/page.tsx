@@ -3,12 +3,14 @@ import React, { useState, useEffect } from "react";
 import AuthGuard from "@/components/AuthGuard";
 import { useAuth } from "@/contexts/AuthContext";
 import { logoutUser } from "@/lib/auth";
-import { uploadProfilePicture } from "@/lib/storage";
+import { updateProfilePhoto } from "@/lib/storage";
 import { useRouter } from "next/navigation";
 import { deleteUser } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { deleteUserFootprint, getUserDownloadHistory, DownloadRecord } from "@/lib/db";
+import Navigation from "@/components/Navigation";
+import Footer from "@/components/Footer";
 
 export default function ProfilePage() {
   const { user, userData } = useAuth();
@@ -69,8 +71,7 @@ export default function ProfilePage() {
     
     setUploading(true);
     try {
-      await uploadProfilePicture(file, user.uid);
-      // Reload page to reflect changes
+      await updateProfilePhoto(file);
       window.location.reload();
     } catch (err) {
       console.error(err);
@@ -81,150 +82,175 @@ export default function ProfilePage() {
 
   return (
     <AuthGuard>
-      <div style={{ minHeight: '100vh', padding: '80px 16px', background: 'var(--bg)', display: 'flex', justifyContent: 'center' }}>
-        <div style={{ width: '100%', maxWidth: '500px' }}>
+      <div className="min-h-screen bg-surface text-on-surface flex flex-col">
+        <Navigation />
+        
+        <main className="flex-1 w-full max-w-4xl mx-auto px-6 py-12">
           
-          {/* Header */}
-          <h1 style={{ fontSize: '24px', fontWeight: 700, textAlign: 'center', marginBottom: '32px' }}>Profile</h1>
-          
-          {/* Avatar Section */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '40px' }}>
-            <div style={{ position: 'relative', width: '140px', height: '140px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--c1), var(--c2))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '48px', fontWeight: 'bold', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
-              {user?.photoURL ? (
-                <img src={user.photoURL} alt="Profile" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
-              ) : (
-                (userData?.displayName || user?.displayName || "U")[0].toUpperCase()
-              )}
-              <label style={{ position: 'absolute', bottom: '8px', right: '8px', background: 'var(--c1)', color: '#fff', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: uploading ? 'wait' : 'pointer', fontSize: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', transition: 'transform 0.2s' }}>
-                📷
-                <input aria-label="Profile Image Upload" type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} disabled={uploading} />
-              </label>
-            </div>
-          </div>
-          
-          {/* Details List */}
-          <div className="glass-panel" style={{ overflow: 'hidden', marginBottom: '32px', padding: 0 }}>
+          <div className="flex flex-col md:flex-row gap-8 items-start">
             
-            {/* Name */}
-            <div style={{ display: 'flex', gap: '16px', padding: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ fontSize: '24px', opacity: 0.5 }}>👤</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', marginBottom: '4px' }}>Name</div>
-                <div style={{ fontSize: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {userData?.displayName || user?.displayName || "N/A"}
-                  {isVerified && (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#00A3FF" xmlns="http://www.w3.org/2000/svg">
-                      <title>Verified Developer</title>
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                    </svg>
+            {/* Left Column: Avatar & Actions */}
+            <div className="w-full md:w-1/3 flex flex-col items-center">
+              <div className="relative mb-6 group">
+                <div className="w-40 h-40 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center text-5xl font-bold shadow-lg overflow-hidden border-4 border-surface">
+                  {user?.photoURL ? (
+                    <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    (userData?.displayName || user?.displayName || "U")[0].toUpperCase()
                   )}
                 </div>
+                
+                <label className="absolute bottom-2 right-2 w-10 h-10 bg-primary text-on-primary rounded-full flex items-center justify-center shadow-md cursor-pointer hover:scale-110 transition-transform">
+                  <span className="material-symbols-outlined text-xl">{uploading ? 'sync' : 'photo_camera'}</span>
+                  {uploading && <span className="material-symbols-outlined absolute animate-spin">sync</span>}
+                  <input aria-label="Profile Image Upload" type="file" accept="image/*" className="hidden" onChange={handleFileChange} disabled={uploading} />
+                </label>
               </div>
-            </div>
-            
-            {/* Email */}
-            <div style={{ display: 'flex', gap: '16px', padding: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ fontSize: '24px', opacity: 0.5 }}>📧</div>
-              <div style={{ flex: 1, overflow: 'hidden' }}>
-                <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', marginBottom: '4px' }}>Email</div>
-                <div style={{ fontSize: '16px', fontWeight: 600, wordBreak: 'break-all' }}>{user?.email || "N/A"}</div>
+
+              <h1 className="font-display-sm text-2xl font-bold text-center mb-1">
+                {userData?.displayName || user?.displayName || "Unnamed User"}
+              </h1>
+              <div className="font-body-md text-on-surface-variant text-center mb-8">
+                {user?.email}
               </div>
-            </div>
-            
-            {/* Account Type */}
-            <div style={{ display: 'flex', gap: '16px', padding: '20px', borderBottom: (userData?.role === 'developer' || userData?.role === 'admin') ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
-              <div style={{ fontSize: '24px', opacity: 0.5 }}>💼</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', marginBottom: '4px' }}>Account Type</div>
-                <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--c2)', textTransform: 'capitalize' }}>
-                  {userData?.role || "User"}
-                </div>
+
+              <div className="w-full flex flex-col gap-3">
+                {userData?.role !== 'developer' && userData?.role !== 'admin' && (
+                  <button onClick={() => router.push('/register/developer')} className="w-full py-3 px-4 bg-primary text-on-primary rounded-xl font-label-lg font-bold hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm flex items-center justify-center gap-2">
+                    <span className="material-symbols-outlined">rocket_launch</span>
+                    Become a Developer
+                  </button>
+                )}
+                
+                {(userData?.role === 'developer' || userData?.role === 'admin') && (
+                  <button onClick={() => router.push('/dashboard')} className="w-full py-3 px-4 bg-primary text-on-primary rounded-xl font-label-lg font-bold hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm flex items-center justify-center gap-2">
+                    <span className="material-symbols-outlined">dashboard</span>
+                    Developer Dashboard
+                  </button>
+                )}
+
+                {userData?.role === 'admin' && (
+                  <button onClick={() => router.push('/admin')} className="w-full py-3 px-4 bg-error-container text-on-error-container rounded-xl font-label-lg font-bold hover:bg-error hover:text-on-error transition-colors shadow-sm flex items-center justify-center gap-2">
+                    <span className="material-symbols-outlined">admin_panel_settings</span>
+                    Admin Panel
+                  </button>
+                )}
+
+                <button onClick={handleLogout} className="w-full py-3 px-4 bg-surface-variant text-on-surface-variant border border-outline-variant rounded-xl font-label-lg font-bold hover:bg-surface-container-highest transition-colors shadow-sm flex items-center justify-center gap-2 mt-4">
+                  <span className="material-symbols-outlined">logout</span>
+                  Log Out
+                </button>
               </div>
             </div>
 
-            {/* Verification Status */}
-            {(userData?.role === 'developer' || userData?.role === 'admin') && (
-              <div style={{ display: 'flex', gap: '16px', padding: '20px' }}>
-                <div style={{ fontSize: '24px', opacity: 0.5 }}>🛡️</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', marginBottom: '4px' }}>Verification Status</div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '16px', fontWeight: 600, color: isVerified ? '#00FF00' : '#FFB300' }}>
-                      {isVerified ? 'Verified' : 'Unverified'}
+            {/* Right Column: Details & History */}
+            <div className="w-full md:w-2/3 flex flex-col gap-8">
+              
+              {/* Profile Details Card */}
+              <div className="bg-surface-container-low border border-outline-variant rounded-3xl p-6 md:p-8">
+                <h2 className="font-headline-sm font-bold text-on-surface mb-6 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary">person</span>
+                  Account Details
+                </h2>
+
+                <div className="flex flex-col gap-6">
+                  <div>
+                    <div className="font-label-md text-on-surface-variant mb-1 uppercase tracking-wider">Account Type</div>
+                    <div className="font-body-lg text-on-surface capitalize flex items-center gap-2">
+                      {userData?.role || "User"}
+                      {userData?.role === 'developer' && <span className="material-symbols-outlined text-primary text-sm">code</span>}
+                      {userData?.role === 'admin' && <span className="material-symbols-outlined text-error text-sm">shield</span>}
                     </div>
-                    {!isVerified && (
-                      <a href="/dashboard/verification" className="btn-glass" style={{ fontSize: '13px', color: '#00A3FF', textDecoration: 'none', background: 'rgba(0,163,255,0.1)', padding: '6px 14px', borderRadius: '100px', fontWeight: 600 }}>
-                        Apply for Aero Tick
-                      </a>
-                    )}
                   </div>
+
+                  {(userData?.role === 'developer' || userData?.role === 'admin') && (
+                    <div className="pt-4 border-t border-outline-variant">
+                      <div className="font-label-md text-on-surface-variant mb-2 uppercase tracking-wider">Verification Status</div>
+                      <div className="flex items-center justify-between bg-surface-container rounded-2xl p-4">
+                        <div className="flex items-center gap-3">
+                          {isVerified ? (
+                            <>
+                              <div className="w-10 h-10 rounded-full bg-green-500/20 text-green-500 flex items-center justify-center">
+                                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
+                              </div>
+                              <div>
+                                <div className="font-bold text-green-500">Verified Developer</div>
+                                <div className="font-body-sm text-on-surface-variant">Your identity has been confirmed.</div>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="w-10 h-10 rounded-full bg-yellow-500/20 text-yellow-600 flex items-center justify-center">
+                                <span className="material-symbols-outlined">pending_actions</span>
+                              </div>
+                              <div>
+                                <div className="font-bold text-yellow-600">Unverified</div>
+                                <div className="font-body-sm text-on-surface-variant">Complete verification for a blue tick.</div>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                        {!isVerified && (
+                          <button onClick={() => router.push('/dashboard/verification')} className="px-4 py-2 bg-surface text-primary border border-primary/30 rounded-xl font-label-lg font-bold hover:bg-primary/10 transition-colors">
+                            Apply Now
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                 </div>
               </div>
-            )}
 
-          </div>
+              {/* Download History Card */}
+              <div className="bg-surface-container-low border border-outline-variant rounded-3xl p-6 md:p-8">
+                <h2 className="font-headline-sm font-bold text-on-surface mb-6 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary">history</span>
+                  Download History
+                </h2>
 
-          {/* Download History Section */}
-          <div className="glass-panel" style={{ overflow: 'hidden', marginBottom: '32px', padding: '24px' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>📥</span> My Download History
-            </h2>
-            
-            {downloadHistory.length === 0 ? (
-              <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.5)', fontSize: '14px', padding: '20px' }}>
-                You haven't downloaded any apps yet.
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '16px' }}>
-                {downloadHistory.map(record => (
-                  <a key={record.id} href={`/app?id=${record.appId}`} style={{ display: 'block', textDecoration: 'none', position: 'relative', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
-                    <div style={{ width: '100%', aspectRatio: '1', marginBottom: '8px' }}>
-                      <img src={record.iconUrl} alt={record.appName} style={{ width: '100%', height: '100%', borderRadius: '20px', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }} />
+                {downloadHistory.length === 0 ? (
+                  <div className="text-center py-8">
+                    <div className="w-16 h-16 bg-surface-container rounded-full flex items-center justify-center mx-auto mb-4 text-on-surface-variant">
+                      <span className="material-symbols-outlined text-3xl">download_done</span>
                     </div>
-                    <div style={{ fontWeight: 600, color: '#fff', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>
-                      {record.appName}
-                    </div>
-                  </a>
-                ))}
+                    <div className="font-body-lg text-on-surface-variant">No apps downloaded yet.</div>
+                    <button onClick={() => router.push('/')} className="mt-4 text-primary font-bold hover:underline">
+                      Explore the Store
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {downloadHistory.map(record => (
+                      <a key={record.id} href={`/app?id=${record.appId}`} className="group flex flex-col items-center p-4 bg-surface-container rounded-2xl border border-transparent hover:border-outline-variant hover:bg-surface-container-highest transition-all">
+                        <img src={record.iconUrl} alt={record.appName} className="w-16 h-16 rounded-2xl object-cover shadow-sm mb-3 group-hover:scale-105 transition-transform" />
+                        <div className="font-label-lg font-bold text-on-surface text-center truncate w-full">{record.appName}</div>
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          {/* Action Buttons */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {userData?.role !== 'developer' && userData?.role !== 'admin' && (
-              <>
-                <a href="/register/developer/" className="btn-glass btn-glass-primary" style={{ width: '100%', padding: '16px', textAlign: 'center', display: 'block', fontSize: '16px' }}>
-                  Upgrade to Developer
-                </a>
+              {/* Danger Zone */}
+              <div className="bg-red-500/5 border border-red-500/20 rounded-3xl p-6 md:p-8 mt-4">
+                <h2 className="font-headline-sm font-bold text-red-500 mb-2">Danger Zone</h2>
+                <p className="font-body-sm text-on-surface-variant mb-6">Once you delete your account, there is no going back. Please be certain.</p>
                 <button 
                   onClick={handleDeleteUserAccount}
                   disabled={deleting}
-                  style={{ width: '100%', padding: '16px', background: 'rgba(255,77,77,0.1)', color: '#ff4d4d', border: '1px solid rgba(255,77,77,0.3)', textDecoration: 'none', borderRadius: '12px', fontWeight: 600, fontSize: '16px', cursor: deleting ? 'wait' : 'pointer' }}
+                  className="px-6 py-3 bg-red-500/10 text-red-500 border border-red-500/30 rounded-xl font-label-lg font-bold hover:bg-red-500/20 transition-colors flex items-center gap-2"
                 >
-                  {deleting ? 'Deleting...' : '🗑️ Delete Account'}
+                  <span className="material-symbols-outlined">delete_forever</span>
+                  {deleting ? 'Deleting...' : 'Delete Account'}
                 </button>
-              </>
-            )}
-            
-            {(userData?.role === 'developer' || userData?.role === 'admin') && (
-              <a href="/dashboard/" className="btn-glass btn-glass-primary" style={{ width: '100%', padding: '16px', textAlign: 'center', display: 'block', fontSize: '16px' }}>
-                Go to Developer Dashboard
-              </a>
-            )}
+              </div>
 
-            {userData?.role === 'admin' && (
-              <a href="/admin/" style={{ width: '100%', padding: '16px', background: 'rgba(255,77,77,0.1)', color: '#ff4d4d', border: '1px solid rgba(255,77,77,0.3)', textDecoration: 'none', borderRadius: '12px', fontWeight: 600, fontSize: '16px', textAlign: 'center', display: 'block' }}>
-                🛡️ Go to Admin Panel
-              </a>
-            )}
-
-            <button onClick={handleLogout} style={{ width: '100%', padding: '16px', background: 'var(--surface2)', color: '#ff4d4d', border: '1px solid rgba(255,77,77,0.2)', borderRadius: '12px', fontWeight: 600, fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-              <span>🚪</span> Log Out
-            </button>
+            </div>
           </div>
           
-        </div>
+        </main>
+        
+        <Footer />
       </div>
     </AuthGuard>
   );
