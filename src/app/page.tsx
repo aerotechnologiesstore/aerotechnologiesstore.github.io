@@ -58,12 +58,7 @@ function StorefrontContent() {
       <Navigation />
       <main className="w-full max-w-container-max-width mx-auto px-4 sm:px-margin-desktop py-4 sm:py-8 space-y-8 sm:space-y-12">
         
-        {loading ? (
-          <div className="text-center py-20 text-on-surface-variant">
-            <span className="material-symbols-outlined text-4xl animate-spin mb-4" style={{ fontVariationSettings: "'FILL' 1" }}>sync</span>
-            <p className="font-body-lg">Loading Aero Store...</p>
-          </div>
-        ) : search ? (
+        {search ? (
           /* Search Results */
           <div>
             <h2 className="font-headline-lg text-headline-lg text-on-surface mb-6">Search Results for "{search}"</h2>

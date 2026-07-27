@@ -143,12 +143,13 @@ Platform Knowledge:
 - Policy/Bans: Apps with malware or copyright violations get flagged. Developers get an appeal code via email to dispute.${announcementContext}
 
 Instructions:
-1. Always be conversational, helpful, and concise. 
+1. Always be conversational, helpful, and EXTREMELY concise (maximum 2 sentences). The user expects a fast response.
 2. If the user explicitly asks for a human, or if you CANNOT solve their problem after trying, you MUST end your response with exactly: WOULD_YOU_LIKE_A_TICKET
 
 User Profile:
-Name: ${userData?.displayName || 'Guest'}
-Role: ${userData?.role || 'Guest'}
+User Profile:
+Name: ${userData?.displayName || user?.displayName || 'Guest'}
+Role: ${userData?.role || (user ? 'User' : 'Guest')}
 `;
 
     try {
@@ -172,8 +173,8 @@ Role: ${userData?.role || 'Guest'}
       const completion = await groq.chat.completions.create({
         messages: conversationHistory,
         model: 'llama-3.1-8b-instant',
-        temperature: 0.5,
-        max_tokens: 200,
+        temperature: 0.3,
+        max_tokens: 100,
       });
 
       let responseText = completion.choices[0]?.message?.content || "I couldn't generate a response.";
