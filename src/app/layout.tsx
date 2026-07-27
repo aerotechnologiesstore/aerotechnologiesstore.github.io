@@ -54,8 +54,8 @@ export default function RootLayout({
       <body>
         <AuthProvider>
           {children}
+          <StrikeBot />
         </AuthProvider>
-        <StrikeBot />
         <Script id="register-sw" strategy="afterInteractive">
           {`
             if ('serviceWorker' in navigator) {
