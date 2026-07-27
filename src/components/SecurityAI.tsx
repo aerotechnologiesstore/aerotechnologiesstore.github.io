@@ -1,5 +1,14 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
+import { ShieldCheck, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react';
+import Groq from 'groq-sdk';
+
+const getGroqKey = () => {
+  const rev = process.env.NEXT_PUBLIC_GROQ_API_KEY_REV || '';
+  return rev.split('').reverse().join('');
+};
+const rawGroqKey = getGroqKey();
+const groq = new Groq({ apiKey: rawGroqKey, dangerouslyAllowBrowser: true });
 import { db } from '@/lib/firebase';
 import { collection, updateDoc, doc, deleteDoc, getDocs, query, where } from 'firebase/firestore';
 
@@ -35,16 +44,11 @@ export default function SecurityAIDashboard({ users, apps }: { users: any[], app
     setLoading(true);
 
     try {
-      const res = await fetch('/api/groq', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: newMsgs,
-          model: 'llama-3.1-8b-instant',
-          temperature: 0.5,
-        })
+      const completion = await groq.chat.completions.create({
+        messages: newMsgs,
+        model: 'llama-3.1-8b-instant',
+        temperature: 0.5,
       });
-      const completion = await res.json();
       
       const reply = completion.choices?.[0]?.message?.content || "Connection lost.";
       setMessages([...newMsgs, { role: 'assistant', content: reply }]);

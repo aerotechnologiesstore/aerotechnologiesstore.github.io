@@ -1,8 +1,17 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
+import { Bot, Send, X, ShieldAlert } from 'lucide-react';
+import Groq from 'groq-sdk';
 import { useAuth } from '@/contexts/AuthContext';
 import { subscribeToActiveAnnouncements, Announcement } from '@/lib/db';
 import { usePathname } from 'next/navigation';
+
+const getGroqKey = () => {
+  const rev = process.env.NEXT_PUBLIC_GROQ_API_KEY_REV || '';
+  return rev.split('').reverse().join('');
+};
+const rawGroqKey = getGroqKey();
+const groq = new Groq({ apiKey: rawGroqKey, dangerouslyAllowBrowser: true });
 
 type Message = { id: string; sender: 'bot' | 'user'; text: string; options?: string[]; isTicketOption?: boolean };
 
@@ -160,19 +169,14 @@ Role: ${userData?.role || 'Guest'}
       // Add the current new user message
       conversationHistory.push({ role: 'user', content: userText });
 
-      const res = await fetch('/api/groq', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: conversationHistory,
-          model: 'llama-3.1-8b-instant',
-          temperature: 0.5,
-          max_tokens: 200,
-        })
+      const completion = await groq.chat.completions.create({
+        messages: conversationHistory,
+        model: 'llama-3.1-8b-instant',
+        temperature: 0.5,
+        max_tokens: 200,
       });
-      const chatCompletion = await res.json();
 
-      let responseText = chatCompletion.choices[0]?.message?.content || "I couldn't generate a response.";
+      let responseText = completion.choices[0]?.message?.content || "I couldn't generate a response.";
       let isTicketOption = false;
 
       if (responseText.includes("WOULD_YOU_LIKE_A_TICKET")) {

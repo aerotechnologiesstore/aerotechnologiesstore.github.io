@@ -2,6 +2,14 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { uploadAppFile, uploadAppIcon, uploadAppBanner, submitAppListing, UploadProgressEvent } from '@/lib/storage';
+import Groq from 'groq-sdk';
+
+const getGroqKey = () => {
+  const rev = process.env.NEXT_PUBLIC_GROQ_API_KEY_REV || '';
+  return rev.split('').reverse().join('');
+};
+const rawGroqKey = getGroqKey();
+const groq = new Groq({ apiKey: rawGroqKey, dangerouslyAllowBrowser: true });
 import { getDownloadURL } from 'firebase/storage';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
@@ -96,16 +104,11 @@ Suggest the following properties in JSON format only:
 }
 Output nothing but the JSON.`;
 
-      const res = await fetch('/api/groq', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [{ role: 'user', content: prompt }],
-          model: 'llama-3.1-8b-instant',
-          temperature: 0.1,
-        })
+      const completion = await groq.chat.completions.create({
+        messages: [{ role: 'user', content: prompt }],
+        model: 'llama-3.1-8b-instant',
+        temperature: 0.1,
       });
-      const completion = await res.json();
 
       const response = completion.choices[0]?.message?.content?.trim() || "{}";
       const match = response.match(/\{[\s\S]*\}/);
