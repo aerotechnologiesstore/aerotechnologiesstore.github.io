@@ -8,12 +8,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import Groq from 'groq-sdk';
 import SecurityAIDashboard from '@/components/SecurityAI';
 
-const getGroqKey = () => {
-  const rev = process.env.NEXT_PUBLIC_GROQ_API_KEY_REV || '';
-  return rev.split('').reverse().join('');
-};
-const rawGroqKey = getGroqKey();
-const groq = new Groq({ apiKey: rawGroqKey, dangerouslyAllowBrowser: true });
+const groq = new Groq({ 
+  apiKey: 'proxy-key', 
+  baseURL: process.env.NEXT_PUBLIC_AI_PROXY_URL || 'https://aero-ai-proxy.aerotechnologies-store.workers.dev',
+  dangerouslyAllowBrowser: true 
+});
 
 export default function AdminDashboard() {
   const { userData } = useAuth();

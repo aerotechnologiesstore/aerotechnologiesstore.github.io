@@ -5,12 +5,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { createSupportChat, subscribeToUserActiveChat, subscribeToChatMessages, sendChatMessage, updateChatStatus, updateTypingStatus, rateSupportChat, SupportChat, SupportMessage } from '@/lib/db';
 import Groq from 'groq-sdk';
 
-const getGroqKey = () => {
-  const rev = process.env.NEXT_PUBLIC_GROQ_API_KEY_REV || '';
-  return rev.split('').reverse().join('');
-};
-const rawGroqKey = getGroqKey();
-const groq = new Groq({ apiKey: rawGroqKey, dangerouslyAllowBrowser: true });
+const groq = new Groq({ 
+  apiKey: 'proxy-key', 
+  baseURL: process.env.NEXT_PUBLIC_AI_PROXY_URL || 'https://aero-ai-proxy.aerotechnologies-store.workers.dev',
+  dangerouslyAllowBrowser: true 
+});
 
 export default function Support() {
   const { user, userData, loading: authLoading } = useAuth();

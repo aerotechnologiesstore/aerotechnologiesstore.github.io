@@ -1,5 +1,6 @@
-import { collection, doc, getDocs, getDoc, query, orderBy, updateDoc, increment, where, limit, addDoc, serverTimestamp, deleteDoc, setDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, getDoc, query, orderBy, updateDoc, increment, where, limit, addDoc, serverTimestamp, deleteDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from './firebase';
+import { encryptText, decryptText } from './encryption';
 
 export interface Review {
   id: string;
@@ -588,8 +589,6 @@ export async function acceptDeletionRequest(reqId: string): Promise<void> {
  * ==========================================
  */
 
-import { onSnapshot } from 'firebase/firestore';
-
 /**
  * Subscribes to published apps in real-time, filtering out scheduled apps that are not yet due.
  */
@@ -1017,12 +1016,13 @@ export async function updateTypingStatus(chatId: string, role: 'customer' | 'age
  */
 export async function sendChatMessage(chatId: string, senderId: string, senderRole: 'customer' | 'support' | 'ai', senderName: string, text: string, aiAssisted?: boolean) {
   const msgRef = collection(db, 'support_messages');
+  const encryptedText = await encryptText(text);
   const payload: any = {
     chatId,
     senderId,
     senderRole,
     senderName,
-    text,
+    text: encryptedText,
     createdAt: serverTimestamp()
   };
   if (aiAssisted) payload.aiAssisted = true;
@@ -1082,9 +1082,15 @@ export function subscribeToChatMessages(chatId: string, callback: (msgs: Support
   const msgsRef = collection(db, 'support_messages');
   const q = query(msgsRef, where('chatId', '==', chatId));
   
-  return onSnapshot(q, (snapshot) => {
-    const msgs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as SupportMessage));
-    msgs.sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
+  return onSnapshot(q, async (snapshot) => {
+    const rawMsgs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as SupportMessage));
+    rawMsgs.sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
+    
+    const msgs = await Promise.all(rawMsgs.map(async (msg) => {
+      const decText = await decryptText(msg.text);
+      return { ...msg, text: decText };
+    }));
+    
     callback(msgs);
   });
 }

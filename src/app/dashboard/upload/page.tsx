@@ -4,12 +4,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { uploadAppFile, uploadAppIcon, uploadAppBanner, submitAppListing, UploadProgressEvent } from '@/lib/storage';
 import Groq from 'groq-sdk';
 
-const getGroqKey = () => {
-  const rev = process.env.NEXT_PUBLIC_GROQ_API_KEY_REV || '';
-  return rev.split('').reverse().join('');
-};
-const rawGroqKey = getGroqKey();
-const groq = new Groq({ apiKey: rawGroqKey, dangerouslyAllowBrowser: true });
+const groq = new Groq({ 
+  apiKey: 'proxy-key', 
+  baseURL: process.env.NEXT_PUBLIC_AI_PROXY_URL || 'https://aero-ai-proxy.aerotechnologies-store.workers.dev',
+  dangerouslyAllowBrowser: true 
+});
 import { getDownloadURL } from 'firebase/storage';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';

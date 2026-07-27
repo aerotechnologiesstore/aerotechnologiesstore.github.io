@@ -3,12 +3,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ShieldCheck, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react';
 import Groq from 'groq-sdk';
 
-const getGroqKey = () => {
-  const rev = process.env.NEXT_PUBLIC_GROQ_API_KEY_REV || '';
-  return rev.split('').reverse().join('');
-};
-const rawGroqKey = getGroqKey();
-const groq = new Groq({ apiKey: rawGroqKey, dangerouslyAllowBrowser: true });
+const groq = new Groq({ 
+  apiKey: 'proxy-key', 
+  baseURL: process.env.NEXT_PUBLIC_AI_PROXY_URL || 'https://aero-ai-proxy.aerotechnologies-store.workers.dev',
+  dangerouslyAllowBrowser: true 
+});
 import { db } from '@/lib/firebase';
 import { collection, updateDoc, doc, deleteDoc, getDocs, query, where } from 'firebase/firestore';
 

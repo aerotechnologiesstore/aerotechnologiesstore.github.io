@@ -6,12 +6,11 @@ import { uploadAppFile, uploadAppBanner, UploadProgressEvent } from '@/lib/stora
 import { getAppById, updateAppListing, AppListing } from '@/lib/db';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-const getGroqKey = () => {
-  const rev = process.env.NEXT_PUBLIC_GROQ_API_KEY_REV || '';
-  return rev.split('').reverse().join('');
-};
-const rawGroqKey = getGroqKey();
-const groq = new Groq({ apiKey: rawGroqKey, dangerouslyAllowBrowser: true });
+const groq = new Groq({ 
+  apiKey: 'proxy-key', 
+  baseURL: process.env.NEXT_PUBLIC_AI_PROXY_URL || 'https://aero-ai-proxy.aerotechnologies-store.workers.dev',
+  dangerouslyAllowBrowser: true 
+});
 
 function UpdateAppContent() {
   const { user } = useAuth();
