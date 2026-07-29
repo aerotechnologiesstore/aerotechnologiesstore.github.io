@@ -33,6 +33,7 @@ function UpdateAppContent() {
   const [containsAds, setContainsAds] = useState(false);
   const [inAppPurchases, setInAppPurchases] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [isPlayable, setIsPlayable] = useState(false);
 
   const [progress, setProgress] = useState(0);
   const [uploadStats, setUploadStats] = useState<UploadProgressEvent | null>(null);
@@ -72,6 +73,7 @@ function UpdateAppContent() {
           setAgeRating(data.ageRating || '3+');
           setContainsAds(data.containsAds || false);
           setInAppPurchases(data.inAppPurchases || false);
+          setIsPlayable(data.isPlayable || false);
           if (data.isPlayable) {
             setSourceType('url');
             setSourceUrl(data.apkUrl);
@@ -184,7 +186,8 @@ Output nothing but the JSON.`;
         bannerUrl: newBannerUrl,
         ageRating,
         containsAds,
-        inAppPurchases
+        inAppPurchases,
+        isPlayable
       });
       
       setProgress(100);
@@ -245,8 +248,16 @@ Output nothing but the JSON.`;
 
           <hr className="border-outline-variant my-2" />
 
+          <label className="flex items-center gap-3 cursor-pointer p-4 border border-outline rounded-xl hover:bg-surface-container-low transition-colors">
+            <input type="checkbox" checked={isPlayable} onChange={(e) => setIsPlayable(e.target.checked)} className="w-5 h-5 text-primary rounded bg-surface border-outline focus:ring-primary focus:ring-2 cursor-pointer" />
+            <div>
+              <div className="font-bold text-on-surface">Is this an Instant Web Game (Playable)?</div>
+              <div className="text-sm text-on-surface-variant">Users can play HTML5 games directly in the browser.</div>
+            </div>
+          </label>
+
           <div>
-            {appData?.isPlayable ? (
+            {isPlayable ? (
               <div>
                 <label className="block mb-2 text-sm font-semibold text-on-surface">Game URL (Instant Web Game)</label>
                 <input aria-label="Upload Form Field" type="url" placeholder="https://game-url.com" value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} disabled={uploading} required className="w-full px-4 py-3 bg-surface border border-outline rounded-lg text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors" />
