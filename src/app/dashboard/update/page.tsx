@@ -72,6 +72,10 @@ function UpdateAppContent() {
           setAgeRating(data.ageRating || '3+');
           setContainsAds(data.containsAds || false);
           setInAppPurchases(data.inAppPurchases || false);
+          if (data.isPlayable) {
+            setSourceType('url');
+            setSourceUrl(data.apkUrl);
+          }
         }
       } catch (err) {
         setError("Error loading app details.");
@@ -242,26 +246,35 @@ Output nothing but the JSON.`;
           <hr className="border-outline-variant my-2" />
 
           <div>
-            <div className="flex flex-col sm:flex-row gap-4 mb-4">
-              <button type="button" onClick={() => setSourceType('file')} className={`flex-1 p-3 rounded-lg font-semibold border transition-colors ${sourceType === 'file' ? 'bg-primary text-on-primary border-primary' : 'bg-transparent text-on-surface-variant border-outline hover:border-primary'}`}>Upload New APK</button>
-              <button type="button" onClick={() => setSourceType('url')} className={`flex-1 p-3 rounded-lg font-semibold border transition-colors ${sourceType === 'url' ? 'bg-primary text-on-primary border-primary' : 'bg-transparent text-on-surface-variant border-outline hover:border-primary'}`}>External URL (GitHub)</button>
-            </div>
-
-            {sourceType === 'file' ? (
-              <div className={`border-2 border-dashed rounded-xl p-10 text-center transition-colors ${apkFile ? 'border-primary bg-primary/5' : 'border-outline-variant hover:border-primary/50'}`}>
-                <div className="text-4xl mb-4">📦</div>
-                {apkFile ? (
-                  <p className="text-primary font-semibold mb-4">{apkFile.name} ({(apkFile.size / 1024 / 1024).toFixed(2)} MB)</p>
-                ) : (
-                  <p className="text-on-surface-variant mb-4">Click to browse and upload the updated .apk file</p>
-                )}
-                <input aria-label="Upload Form Field" type="file" accept=".apk" onChange={(e) => setApkFile(e.target.files?.[0] || null)} disabled={uploading} className="block mx-auto text-on-surface-variant file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-on-primary hover:file:bg-primary-container hover:file:text-on-primary-container" required={sourceType === 'file'} />
+            {appData?.isPlayable ? (
+              <div>
+                <label className="block mb-2 text-sm font-semibold text-on-surface">Game URL (Instant Web Game)</label>
+                <input aria-label="Upload Form Field" type="url" placeholder="https://game-url.com" value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} disabled={uploading} required className="w-full px-4 py-3 bg-surface border border-outline rounded-lg text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors" />
               </div>
             ) : (
-              <div>
-                <label className="block mb-2 text-sm font-semibold text-on-surface">Direct Download URL</label>
-                <input aria-label="Upload Form Field" type="url" placeholder="https://github.com/user/repo/releases/download/v2.0/app.apk" value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} disabled={uploading} required={sourceType === 'url'} className="w-full px-4 py-3 bg-surface border border-outline rounded-lg text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors" />
-              </div>
+              <>
+                <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                  <button type="button" onClick={() => setSourceType('file')} className={`flex-1 p-3 rounded-lg font-semibold border transition-colors ${sourceType === 'file' ? 'bg-primary text-on-primary border-primary' : 'bg-transparent text-on-surface-variant border-outline hover:border-primary'}`}>Upload New APK</button>
+                  <button type="button" onClick={() => setSourceType('url')} className={`flex-1 p-3 rounded-lg font-semibold border transition-colors ${sourceType === 'url' ? 'bg-primary text-on-primary border-primary' : 'bg-transparent text-on-surface-variant border-outline hover:border-primary'}`}>External URL (GitHub)</button>
+                </div>
+
+                {sourceType === 'file' ? (
+                  <div className={`border-2 border-dashed rounded-xl p-10 text-center transition-colors ${apkFile ? 'border-primary bg-primary/5' : 'border-outline-variant hover:border-primary/50'}`}>
+                    <div className="text-4xl mb-4">📦</div>
+                    {apkFile ? (
+                      <p className="text-primary font-semibold mb-4">{apkFile.name} ({(apkFile.size / 1024 / 1024).toFixed(2)} MB)</p>
+                    ) : (
+                      <p className="text-on-surface-variant mb-4">Click to browse and upload the updated .apk file</p>
+                    )}
+                    <input aria-label="Upload Form Field" type="file" accept=".apk" onChange={(e) => setApkFile(e.target.files?.[0] || null)} disabled={uploading} className="block mx-auto text-on-surface-variant file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-on-primary hover:file:bg-primary-container hover:file:text-on-primary-container" required={sourceType === 'file'} />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-on-surface">Direct Download URL</label>
+                    <input aria-label="Upload Form Field" type="url" placeholder="https://github.com/user/repo/releases/download/v2.0/app.apk" value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} disabled={uploading} required={sourceType === 'url'} className="w-full px-4 py-3 bg-surface border border-outline rounded-lg text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors" />
+                  </div>
+                )}
+              </>
             )}
           </div>
 
