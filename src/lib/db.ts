@@ -1245,3 +1245,61 @@ export async function processScheduledApps(): Promise<void> {
     console.error("Failed to process scheduled apps:", err);
   }
 }
+
+// ==========================================
+// CHESS MULTIPLAYER FUNCTIONS
+// ==========================================
+
+export interface ChessMatch {
+  id?: string;
+  fen: string;
+  white: string;
+  black: string | null;
+  status: 'waiting' | 'playing' | 'finished';
+  winner?: 'white' | 'black' | 'draw' | null;
+  createdAt: any;
+  lastMoveAt: any;
+}
+
+export async function createChessMatch(hostId: string): Promise<string> {
+  const matchRef = collection(db, 'chess_matches');
+  const docRef = await addDoc(matchRef, {
+    fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', // starting position
+    white: hostId,
+    black: null,
+    status: 'waiting',
+    createdAt: serverTimestamp(),
+    lastMoveAt: serverTimestamp()
+  });
+  return docRef.id;
+}
+
+export async function joinChessMatch(matchId: string, guestId: string): Promise<boolean> {
+  const docRef = doc(db, 'chess_matches', matchId);
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) return false;
+  
+  const data = snap.data() as ChessMatch;
+  if (data.status === 'waiting' && data.white !== guestId) {
+    await updateDoc(docRef, {
+      black: guestId,
+      status: 'playing',
+      lastMoveAt: serverTimestamp()
+    });
+    return true;
+  }
+  return data.black === guestId || data.white === guestId; // already joined
+}
+
+export async function updateChessMatchFen(matchId: string, fen: string, winner?: 'white'|'black'|'draw'): Promise<void> {
+  const docRef = doc(db, 'chess_matches', matchId);
+  const updateData: any = {
+    fen,
+    lastMoveAt: serverTimestamp()
+  };
+  if (winner) {
+    updateData.status = 'finished';
+    updateData.winner = winner;
+  }
+  await updateDoc(docRef, updateData);
+}
