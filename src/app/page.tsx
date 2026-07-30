@@ -45,8 +45,8 @@ function StorefrontContent() {
     (a.category && a.category.toLowerCase().includes(search.toLowerCase()))
   );
 
-  const topDownloads = [...apps].sort((a, b) => b.downloads - a.downloads);
-  const newReleases = [...apps].sort((a, b) => b.createdAt - a.createdAt);
+  const topDownloads = [...apps].filter(a => !a.isPlayable).sort((a, b) => b.downloads - a.downloads);
+  const newReleases = [...apps].filter(a => !a.isPlayable).sort((a, b) => b.createdAt - a.createdAt);
   const playables = apps.filter(a => a.isPlayable);
   const categories = Array.from(new Set(apps.map(a => a.category))).filter(Boolean);
 
@@ -153,6 +153,13 @@ function StorefrontContent() {
                     <h2 className="text-xl sm:text-2xl md:text-headline-lg font-bold text-on-surface">Aero Instant Games</h2>
                     <p className="text-on-surface-variant text-xs sm:text-sm">Instant games, no downloads</p>
                   </div>
+                  {playables.length > 1 && (
+                    <div className="flex items-center gap-2">
+                       <button className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center hover:bg-surface-variant transition-colors border border-outline-variant text-on-surface">
+                         <span className="material-symbols-outlined">search</span>
+                       </button>
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-4 sm:gap-card-gap overflow-x-auto pb-4 sm:pb-6 hide-scrollbar carousel-container">
                   {playables.map((app) => (
@@ -173,10 +180,6 @@ function StorefrontContent() {
                       </div>
                     </a>
                   ))}
-                  {/* Peek Card */}
-                  <div className="min-w-[140px] sm:min-w-[200px] flex-shrink-0 opacity-40">
-                    <div className="aspect-[3/4] bg-surface-container rounded-2xl sm:rounded-3xl border border-outline-variant border-dashed"></div>
-                  </div>
                 </div>
               </section>
             )}
@@ -194,10 +197,6 @@ function StorefrontContent() {
                   {topDownloads.map((app, idx) => (
                     <AppCard key={app.id} app={app} rank={idx + 1} isLarge />
                   ))}
-                  {/* Peek Card */}
-                  <div className="min-w-[140px] sm:min-w-[200px] flex-shrink-0 opacity-40">
-                    <div className="aspect-square bg-surface-container rounded-2xl sm:rounded-3xl"></div>
-                  </div>
                 </div>
               </section>
             )}

@@ -254,7 +254,7 @@ Role: ${userData?.role || (user ? 'User' : 'Guest')}
     }, 600);
   };
 
-  if (pathname?.startsWith('/support')) return null;
+  if (pathname?.startsWith('/support') || pathname?.startsWith('/play')) return null;
 
   return (
     <div className="fixed bottom-6 right-6 z-[9999]">
