@@ -62,7 +62,7 @@ export default function AboutPage() {
             <video
               key={videoLang}
               ref={videoRef}
-              src={videoLang === 'en' ? '/marketing/promo-en.mp4' : '/marketing/promo-hi.mp4'}
+              src={videoLang === 'en' ? '/about-media/promo-en.mp4' : '/about-media/promo-hi.mp4'}
               autoPlay
               muted
               playsInline
@@ -78,12 +78,12 @@ export default function AboutPage() {
           
           <div className="w-full rounded-3xl overflow-hidden border border-outline-variant shadow-lg bg-surface-container">
             <img 
-              src="/marketing/infographic-desktop.png" 
+              src="/about-media/infographic-desktop.png" 
               alt="Aero Store Desktop Features" 
               className="w-full h-auto hidden md:block" 
             />
             <img 
-              src="/marketing/infographic-mobile.png" 
+              src="/about-media/infographic-mobile.png" 
               alt="Aero Store Mobile Features" 
               className="w-full h-auto block md:hidden" 
             />
