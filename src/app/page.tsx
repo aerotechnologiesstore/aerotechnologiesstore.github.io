@@ -150,7 +150,7 @@ function StorefrontContent() {
               <section>
                 <div className="flex justify-between items-end mb-4 sm:mb-6">
                   <div>
-                    <h2 className="text-xl sm:text-2xl md:text-headline-lg font-bold text-on-surface">YouTube Playables</h2>
+                    <h2 className="text-xl sm:text-2xl md:text-headline-lg font-bold text-on-surface">Aero Instant Games</h2>
                     <p className="text-on-surface-variant text-xs sm:text-sm">Instant games, no downloads</p>
                   </div>
                 </div>
