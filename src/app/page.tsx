@@ -10,6 +10,8 @@ function StorefrontContent() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentFeaturedIndex, setCurrentFeaturedIndex] = useState(0);
+  const [instantSearchMode, setInstantSearchMode] = useState(false);
+  const [instantSearchQuery, setInstantSearchQuery] = useState("");
   
   const searchParams = useSearchParams();
   const search = searchParams?.get('q') || "";
@@ -41,14 +43,19 @@ function StorefrontContent() {
   }, []);
 
   const filteredApps = apps.filter(a => 
-    a.appName.toLowerCase().includes(search.toLowerCase()) || 
-    (a.category && a.category.toLowerCase().includes(search.toLowerCase()))
+    !a.isPlayable && (
+      a.appName.toLowerCase().includes(search.toLowerCase()) || 
+      (a.category && a.category.toLowerCase().includes(search.toLowerCase()))
+    )
   );
 
   const topDownloads = [...apps].filter(a => !a.isPlayable).sort((a, b) => b.downloads - a.downloads);
   const newReleases = [...apps].filter(a => !a.isPlayable).sort((a, b) => b.createdAt - a.createdAt);
+  
   const playables = apps.filter(a => a.isPlayable);
-  const categories = Array.from(new Set(apps.map(a => a.category))).filter(Boolean);
+  const filteredPlayables = playables.filter(a => a.appName.toLowerCase().includes(instantSearchQuery.toLowerCase()));
+  
+  const categories = Array.from(new Set(apps.filter(a => !a.isPlayable).map(a => a.category))).filter(Boolean);
 
   const featuredApps = newReleases.slice(0, 5);
   const featuredApp = featuredApps[currentFeaturedIndex % (featuredApps.length || 1)];
@@ -155,14 +162,31 @@ function StorefrontContent() {
                   </div>
                   {playables.length > 1 && (
                     <div className="flex items-center gap-2">
-                       <button className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center hover:bg-surface-variant transition-colors border border-outline-variant text-on-surface">
-                         <span className="material-symbols-outlined">search</span>
-                       </button>
+                       {instantSearchMode ? (
+                         <div className="flex items-center bg-surface-container rounded-full px-3 py-1 border border-outline-variant">
+                           <span className="material-symbols-outlined text-on-surface-variant text-sm mr-2">search</span>
+                           <input 
+                             type="text" 
+                             autoFocus
+                             value={instantSearchQuery} 
+                             onChange={e => setInstantSearchQuery(e.target.value)} 
+                             placeholder="Search games..." 
+                             className="bg-transparent border-none text-sm text-on-surface focus:outline-none w-24 sm:w-32"
+                           />
+                           <button onClick={() => {setInstantSearchMode(false); setInstantSearchQuery('');}} className="text-on-surface-variant ml-2 hover:text-on-surface">
+                             <span className="material-symbols-outlined text-sm">close</span>
+                           </button>
+                         </div>
+                       ) : (
+                         <button onClick={() => setInstantSearchMode(true)} className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center hover:bg-surface-variant transition-colors border border-outline-variant text-on-surface">
+                           <span className="material-symbols-outlined">search</span>
+                         </button>
+                       )}
                     </div>
                   )}
                 </div>
                 <div className="flex gap-4 sm:gap-card-gap overflow-x-auto pb-4 sm:pb-6 hide-scrollbar carousel-container">
-                  {playables.map((app) => (
+                  {filteredPlayables.map((app) => (
                     <a key={app.id} href={`/play?id=${app.id}`} className="w-[42vw] max-w-[200px] sm:w-[180px] md:w-[200px] flex-shrink-0 group cursor-pointer card-lift transition-all duration-300 relative rounded-[24px] overflow-hidden border border-outline-variant hover:border-primary">
                       <div className="aspect-[3/4] bg-surface-container relative">
                         <img src={app.iconUrl} alt={app.appName} className="w-full h-full object-cover" />
