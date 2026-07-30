@@ -235,7 +235,7 @@ export default function AdminDashboard() {
        else greeting = "Good night";
        
        const automatedMessage = `${greeting}! You are connected to our agent, ${fakeName}. How can I help you today?`;
-       await sendChatMessage(chat.id!, userData.uid, 'agent', fakeName, automatedMessage);
+       await sendChatMessage(chat.id!, userData.uid, 'support', fakeName, automatedMessage);
 
        setSelectedChat({ ...chat, status: 'human_handling', agentId: userData.uid, agentAlias: fakeName });
     } catch (e) {
@@ -275,10 +275,10 @@ export default function AdminDashboard() {
     setIsAiAssisted(false);
     
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    import('@/lib/db').then(({ updateTypingStatus }) => updateTypingStatus(selectedChat.id, 'agent', false));
+    import('@/lib/db').then(({ updateTypingStatus }) => updateTypingStatus(selectedChat.id!, 'agent', false));
     
     try {
-      await sendChatMessage(selectedChat.id, userData.uid, 'support', selectedChat.agentAlias || "Agent", text, wasAssisted);
+      await sendChatMessage(selectedChat.id!, userData.uid, 'support', selectedChat.agentAlias || "Agent", text, wasAssisted);
       const { sendNotification } = await import('@/lib/db');
       await sendNotification(selectedChat.customerId, "Support Reply", `Agent ${selectedChat.agentAlias || "Agent"} replied: ${text.substring(0, 50)}...`, "/support");
     } catch (e) {
@@ -336,16 +336,16 @@ export default function AdminDashboard() {
     
     if (val.trim() === '') {
       setIsAiAssisted(false);
-      import('@/lib/db').then(({ updateTypingStatus }) => updateTypingStatus(selectedChat.id, 'agent', false));
+      import('@/lib/db').then(({ updateTypingStatus }) => updateTypingStatus(selectedChat.id!, 'agent', false));
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       return;
     }
     
-    import('@/lib/db').then(({ updateTypingStatus }) => updateTypingStatus(selectedChat.id, 'agent', true));
+    import('@/lib/db').then(({ updateTypingStatus }) => updateTypingStatus(selectedChat.id!, 'agent', true));
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     
     typingTimeoutRef.current = setTimeout(() => {
-      import('@/lib/db').then(({ updateTypingStatus }) => updateTypingStatus(selectedChat.id, 'agent', false));
+      import('@/lib/db').then(({ updateTypingStatus }) => updateTypingStatus(selectedChat.id!, 'agent', false));
     }, 2000);
   };
 
@@ -504,7 +504,9 @@ export default function AdminDashboard() {
           alert("Only Admins can assign Manager or Admin roles.");
           return;
         }
-        if (userData?.role !== 'admin' && uRole === 'admin') {
+        
+        const currentUserRole = users.find(u => u.uid === uid)?.role;
+        if (userData?.role !== 'admin' && currentUserRole === 'admin') {
           alert("You cannot change an Admin's role.");
           return;
         }
@@ -604,7 +606,7 @@ export default function AdminDashboard() {
     const topic = announcementMsg;
     setIsGeneratingAI(true);
     try {
-      if (!rawGroqKey) throw new Error("Missing AI configuration");
+      if (!process.env.NEXT_PUBLIC_GROQ_API_KEY) throw new Error("Missing AI configuration");
       const completion = await groq.chat.completions.create({
         messages: [{
           role: 'system',
@@ -822,7 +824,7 @@ export default function AdminDashboard() {
                       <td className="p-4 text-right">
                         <select aria-label="Admin Form Field" 
                           value={u.role || 'user'}
-                          onChange={(e) => handleRoleChange(u.uid, e.target.value as any, u.role)}
+                          onChange={(e) => handleRoleChange(u.uid, e.target.value as any)}
                           className="px-4 py-2 bg-surface text-on-surface border border-outline-variant rounded-xl cursor-pointer focus:outline-none focus:border-primary"
                         >
                           <option value="user">User</option>

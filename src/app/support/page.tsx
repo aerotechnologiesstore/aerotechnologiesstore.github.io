@@ -23,7 +23,7 @@ export default function Support() {
 
   const handleEndChat = async () => {
     if (!activeChat?.id) return;
-    await updateChatStatus(activeChat.id, 'resolved');
+    await updateChatStatus(activeChat.id!, 'resolved');
     setFeedbackGiven(false);
     setRating(0);
     setReviewText("");
@@ -31,7 +31,7 @@ export default function Support() {
 
   const handleSubmitReview = async () => {
     if (!activeChat?.id || rating === 0) return;
-    await rateSupportChat(activeChat.id, rating, reviewText);
+    await rateSupportChat(activeChat.id!, rating, reviewText);
     setFeedbackGiven(true);
   };
 
@@ -39,7 +39,7 @@ export default function Support() {
     if (!activeChat?.id || !user) return;
     
     setIsAITyping(true);
-    await updateChatStatus(activeChat.id, 'waiting_for_human');
+    await updateChatStatus(activeChat.id!, 'waiting_for_human');
     
     const history = messages.map(m => `${m.senderName}: ${m.text}`).join('\n');
     const prompt = `Summarize the following customer support chat history briefly. Focus on what the customer's core issue was and why they might still need help. Keep it under 3 sentences.\n\nChat:\n${history}`;
@@ -58,8 +58,8 @@ export default function Support() {
       console.error("Summary failed");
     }
     
-    await sendChatMessage(activeChat.id, user.uid, 'customer', user.displayName || 'Customer', "No, my problem is not resolved. I need an agent again.");
-    await sendChatMessage(activeChat.id, 'ai_bot', 'ai', 'Strike AI', summary);
+    await sendChatMessage(activeChat.id!, user.uid, 'customer', user.displayName || 'Customer', "No, my problem is not resolved. I need an agent again.");
+    await sendChatMessage(activeChat.id!, 'ai_bot', 'ai', 'Strike AI', summary);
     setIsAITyping(false);
   };
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -72,16 +72,16 @@ export default function Support() {
     if (!activeChat?.id) return;
     
     if (val.trim() === '') {
-      updateTypingStatus(activeChat.id, 'customer', false);
+      updateTypingStatus(activeChat.id!, 'customer', false);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       return;
     }
     
-    updateTypingStatus(activeChat.id, 'customer', true);
+    updateTypingStatus(activeChat.id!, 'customer', true);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     
     typingTimeoutRef.current = setTimeout(() => {
-      updateTypingStatus(activeChat.id, 'customer', false);
+      updateTypingStatus(activeChat.id!, 'customer', false);
     }, 2000);
   };
 
@@ -96,7 +96,7 @@ export default function Support() {
       } else {
          setActiveChat(chat);
          if (chat) {
-           previousChatIdRef.current = chat.id;
+           previousChatIdRef.current = chat.id || null;
            setIsChatOpen(true);
          }
       }
@@ -106,7 +106,7 @@ export default function Support() {
 
   useEffect(() => {
     if (!activeChat?.id) return;
-    const unsub = subscribeToChatMessages(activeChat.id, (msgs) => {
+    const unsub = subscribeToChatMessages(activeChat.id!, (msgs) => {
       setMessages(msgs);
     });
     return () => unsub();
@@ -133,12 +133,12 @@ export default function Support() {
     const text = inputText.trim();
     
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    updateTypingStatus(activeChat.id, 'customer', false);
+    updateTypingStatus(activeChat.id!, 'customer', false);
 
     setIsAITyping(true);
     setInputText("");
     
-    await sendChatMessage(activeChat.id, user.uid, 'customer', userData?.displayName || user.displayName || 'Customer', text);
+    await sendChatMessage(activeChat.id!, user.uid, 'customer', userData?.displayName || user.displayName || 'Customer', text);
     
     if (activeChat.status === 'ai_handling') {
        try {
@@ -147,8 +147,8 @@ export default function Support() {
          
          if (escalationRegex.test(text)) {
            reply = "I understand. Let me transfer you to a human agent. They will review this chat and reply shortly. If you leave this page, you'll get a notification when they reply.";
-           await sendChatMessage(activeChat.id, 'ai_bot', 'ai', 'Strike AI', reply);
-           await updateChatStatus(activeChat.id, 'waiting_for_human');
+           await sendChatMessage(activeChat.id!, 'ai_bot', 'ai', 'Strike AI', reply);
+           await updateChatStatus(activeChat.id!, 'waiting_for_human');
            setIsAITyping(false);
            return;
          }
@@ -177,15 +177,15 @@ export default function Support() {
            if (!reply) {
              reply = "I understand. Let me transfer you to a human agent. They will review this chat and reply shortly. If you leave this page, you'll get a notification when they reply.";
            }
-           await sendChatMessage(activeChat.id, 'ai_bot', 'ai', 'Strike AI', reply);
-           await updateChatStatus(activeChat.id, 'waiting_for_human');
+           await sendChatMessage(activeChat.id!, 'ai_bot', 'ai', 'Strike AI', reply);
+           await updateChatStatus(activeChat.id!, 'waiting_for_human');
          } else {
-           await sendChatMessage(activeChat.id, 'ai_bot', 'ai', 'Strike AI', reply);
+           await sendChatMessage(activeChat.id!, 'ai_bot', 'ai', 'Strike AI', reply);
          }
          
        } catch (e) {
          console.error(e);
-         await sendChatMessage(activeChat.id, 'ai_bot', 'ai', 'Strike AI', "Sorry, my systems are currently busy. Please wait a moment or ask for a human.");
+         await sendChatMessage(activeChat.id!, 'ai_bot', 'ai', 'Strike AI', "Sorry, my systems are currently busy. Please wait a moment or ask for a human.");
        } finally {
          setIsAITyping(false);
        }

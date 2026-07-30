@@ -122,7 +122,7 @@ function NavigationInner() {
                       {notifications.map(n => (
                         <div 
                           key={n.id} 
-                          onClick={() => handleNotificationClick(n)}
+                          onClick={() => { if (n.actionUrl) router.push(n.actionUrl); setNotifDropdownOpen(false); }}
                           className={`p-3 rounded-xl cursor-pointer transition-colors ${!n.read ? 'bg-surface-variant/50' : 'hover:bg-surface-variant/30'}`}
                         >
                           <div className="flex items-center gap-2 mb-1">

@@ -27,12 +27,16 @@ export interface AppListing {
   inAppPurchases?: boolean;
   whatsNew?: string;
   status: string;
-  virusScanStatus?: 'clean' | 'suspicious' | 'pending';
+  virusScanStatus?: 'clean' | 'suspicious' | 'malicious' | 'pending';
   publishDate?: number | null;
   downloads: number;
   rating: number;
   ratingCount: number;
   createdAt: any;
+  pausedByUid?: string;
+  pausedByName?: string;
+  pausedByAlias?: string;
+  scheduledFor?: number;
   updatedAt: any;
   supportWebsite?: string;
   supportEmail?: string;
@@ -180,6 +184,8 @@ export async function updateAppListing(
     ageRating: string;
     containsAds: boolean;
     inAppPurchases: boolean;
+    isPlayable: boolean;
+    gameUrl: string;
   }>
 ): Promise<void> {
   const docRef = doc(db, 'apps', appId);

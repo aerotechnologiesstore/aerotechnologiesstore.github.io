@@ -193,7 +193,7 @@ export async function submitAppListing(
   ageRating?: string,
   containsAds?: boolean,
   inAppPurchases?: boolean,
-  virusScanStatus: 'clean' | 'suspicious' | 'pending' = 'pending',
+  virusScanStatus: 'clean' | 'suspicious' | 'malicious' | 'pending' = 'pending',
   status: string = 'pending_review',
   publishDate: number | null = null,
   isPlayable: boolean = false,

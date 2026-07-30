@@ -1,19 +1,55 @@
-async function run() {
-  const runsRes = await fetch('https://api.github.com/repos/aerotechnologiesstore/aerotechnologiesstore.github.io/actions/runs?per_page=1');
-  const runsData = await runsRes.json();
-  const runId = runsData.workflow_runs[0].id;
-  
-  const jobsRes = await fetch(`https://api.github.com/repos/aerotechnologiesstore/aerotechnologiesstore.github.io/actions/runs/${runId}/jobs`);
-  const jobsData = await jobsRes.json();
-  const jobId = jobsData.jobs[0].id;
-  
-  const logRes = await fetch(`https://api.github.com/repos/aerotechnologiesstore/aerotechnologiesstore.github.io/actions/jobs/${jobId}/logs`);
-  const logText = await logRes.text();
-  
-  const lines = logText.split('\n');
-  const buildIndex = lines.findIndex(l => l.includes('npm run build'));
-  if (buildIndex !== -1) {
-    console.log(lines.slice(buildIndex, buildIndex + 50).join('\n'));
-  }
+const fs = require('fs');
+const path = require('path');
+const https = require('https');
+const yauzl = require('yauzl');
+
+const owner = 'aerotechnologiesstore';
+const repo = 'aerotechnologiesstore.github.io';
+const runFile = 'run.json';
+
+if (!fs.existsSync(runFile)) {
+    console.error('run.json not found');
+    process.exit(1);
 }
-run();
+
+const runId = JSON.parse(fs.readFileSync(runFile, 'utf8')).id;
+
+const options = {
+    hostname: 'api.github.com',
+    path: `/repos/${owner}/${repo}/actions/runs/${runId}/logs`,
+    headers: {
+        'User-Agent': 'Node.js'
+    }
+};
+
+https.get(options, (res) => {
+    if (res.statusCode === 302) {
+        https.get(res.headers.location, (res2) => {
+            const zipPath = path.join(__dirname, 'logs.zip');
+            const file = fs.createWriteStream(zipPath);
+            res2.pipe(file);
+            file.on('finish', () => {
+                file.close();
+                yauzl.open(zipPath, {lazyEntries: true}, (err, zipfile) => {
+                    if (err) throw err;
+                    zipfile.readEntry();
+                    zipfile.on('entry', (entry) => {
+                        if (entry.fileName.includes('Build with Next.js')) {
+                            zipfile.openReadStream(entry, (err, readStream) => {
+                                if (err) throw err;
+                                let data = '';
+                                readStream.on('data', chunk => data += chunk.toString('utf8'));
+                                readStream.on('end', () => {
+                                    const lines = data.split('\n');
+                                    console.log(lines.slice(-60).join('\n'));
+                                });
+                            });
+                        } else {
+                            zipfile.readEntry();
+                        }
+                    });
+                });
+            });
+        });
+    }
+});

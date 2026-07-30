@@ -72,14 +72,14 @@ export default function VerificationPage() {
           }
         } else {
           setDeveloperData({
-            uid: user.uid,
             companyName: "",
             organizationEmail: "",
-            companyName: "",
-            organizationEmail: "",
+            address: "",
             addressPrivate: false,
             hasVerificationBadge: false,
-            verificationStatus: 'unverified'
+            verificationStatus: 'unverified',
+            totalApps: 0,
+            createdAt: 0
           });
         }
       }
